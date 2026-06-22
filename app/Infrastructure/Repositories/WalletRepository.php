@@ -24,7 +24,6 @@ final class WalletRepository implements WalletRepositoryInterface
             id: $model->id,
             userId: $model->user_id,
             balance: (int) $model->balance,
-            version: (int) $model->version,
         );
     }
 
@@ -32,7 +31,6 @@ final class WalletRepository implements WalletRepositoryInterface
     {
         WalletModel::where('id', $wallet->getId())->update([
             'balance' => $wallet->getBalance(),
-            'version' => $wallet->getVersion() + 1,
         ]);
     }
 }

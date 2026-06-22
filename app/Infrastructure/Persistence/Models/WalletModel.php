@@ -16,11 +16,10 @@ final class WalletModel extends Model
 {
     protected ?string $table = 'wallets';
 
-    protected array $fillable = ['user_id', 'balance', 'version'];
+    protected array $fillable = ['user_id', 'balance'];
 
     protected array $casts = [
         'balance' => 'integer',
-        'version' => 'integer',
     ];
 
     public function user(): \Hyperf\Database\Model\Relations\BelongsTo

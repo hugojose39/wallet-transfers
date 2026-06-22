@@ -14,8 +14,14 @@ date_default_timezone_set('America/Sao_Paulo');
 
 require BASE_PATH . '/vendor/autoload.php';
 
-(new Hyperf\Di\ClassLoader())->init(
-    new Hyperf\Di\ScanHandler\PcntlScanHandler()
+if (! function_exists('env')) {
+    function env($key, $default = null) {
+        return \Hyperf\Support\env($key, $default);
+    }
+}
+
+Hyperf\Di\ClassLoader::init(
+    handler: new Hyperf\Di\ScanHandler\PcntlScanHandler()
 );
 
 $application = require_once BASE_PATH . '/config/container.php';

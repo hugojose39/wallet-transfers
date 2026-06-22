@@ -18,7 +18,6 @@ final class HealthController
     public function index(ResponseInterface $response): PsrResponseInterface
     {
         $checks = [
-            'database' => $this->checkDatabase(),
             'redis' => $this->checkRedis(),
         ];
 
@@ -28,16 +27,6 @@ final class HealthController
             'status' => $healthy ? 'ok' : 'degraded',
             'checks' => $checks,
         ])->withStatus($healthy ? 200 : 503);
-    }
-
-    private function checkDatabase(): bool
-    {
-        try {
-            Db::select('SELECT 1');
-            return true;
-        } catch (\Throwable) {
-            return false;
-        }
     }
 
     private function checkRedis(): bool

@@ -12,7 +12,7 @@ final class TransferResultDTO
         public readonly int $id,
         public readonly int $payerId,
         public readonly int $payeeId,
-        public readonly float $amount,
+        public readonly int $amount,
         public readonly string $status,
         public readonly string $createdAt,
         private readonly Transfer $entity,

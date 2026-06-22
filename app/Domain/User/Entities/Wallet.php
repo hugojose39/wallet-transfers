@@ -13,7 +13,6 @@ final class Wallet
         private readonly int $id,
         private readonly int $userId,
         private int $balance,
-        private int $version = 0,
     ) {
         if ($balance < 0) {
             throw new InvalidArgumentException('Wallet balance cannot be negative.');
@@ -33,11 +32,6 @@ final class Wallet
     public function getBalance(): int
     {
         return $this->balance;
-    }
-
-    public function getVersion(): int
-    {
-        return $this->version;
     }
 
     public function hasEnoughBalance(int $amount): bool

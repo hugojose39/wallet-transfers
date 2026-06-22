@@ -13,9 +13,4 @@ enum UserType: string
     {
         return $this === self::COMMON;
     }
-
-    public function canReceive(): bool
-    {
-        return true;
-    }
 }

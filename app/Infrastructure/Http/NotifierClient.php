@@ -7,6 +7,7 @@ namespace App\Infrastructure\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
+use function Hyperf\Support\env;
 
 final class NotifierClient
 {
@@ -15,7 +16,7 @@ final class NotifierClient
     public function __construct(private readonly LoggerInterface $logger)
     {
         $this->http = new Client([
-            'base_uri' => env('NOTIFIER_BASE_URL', 'https://util.devi.tools/api/v1'),
+            'base_uri' => env('NOTIFIER_BASE_URL', 'https://util.devi.tools/api/'),
             'timeout' => 5.0,
         ]);
     }
@@ -23,7 +24,7 @@ final class NotifierClient
     public function notify(int $transferId, int $payeeId): bool
     {
         try {
-            $response = $this->http->post('/notify', [
+            $response = $this->http->post('v1/notify', [
                 'json' => [
                     'transfer_id' => $transferId,
                     'payee_id' => $payeeId,
