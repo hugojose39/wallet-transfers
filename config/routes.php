@@ -19,3 +19,4 @@ Router::get('/transfer/{id}', [TransferController::class, 'show']);
 Router::post('/users', [UserController::class, 'store']);
 Router::get('/users/{id}/transfers', [UserController::class, 'transfers']);
 Router::get('/users/{id}/wallet', [UserController::class, 'wallet']);
+Router::post('/users/{id}/wallet/deposit', [UserController::class, 'deposit']);
