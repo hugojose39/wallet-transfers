@@ -27,7 +27,7 @@ final class TransferRepository implements TransferRepositoryInterface
             payeeId: $model->payee_id,
             amount: (int) $model->amount,
             status: TransferStatus::from($model->status),
-            createdAt: new DateTimeImmutable($model->created_at),
+            createdAt: DateTimeImmutable::createFromInterface($model->created_at),
         );
     }
 
@@ -57,7 +57,7 @@ final class TransferRepository implements TransferRepositoryInterface
             payeeId: $model->payee_id,
             amount: (int) $model->amount,
             status: TransferStatus::from($model->status),
-            createdAt: new DateTimeImmutable($model->created_at),
+            createdAt: DateTimeImmutable::createFromInterface($model->created_at),
         );
     }
 }
