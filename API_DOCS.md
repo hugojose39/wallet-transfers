@@ -10,13 +10,15 @@ API REST para transferências financeiras entre usuários e lojistas, construíd
 - [Arquitetura](#arquitetura)
 - [Como rodar](#como-rodar)
 - [Endpoints](#endpoints)
+  - [POST /users](#post-users)
+  - [POST /users/{id}/wallet/deposit](#post-usersidwalletdeposit)
   - [POST /transfer](#post-transfer)
   - [GET /transfer/{id}](#get-transferid)
   - [GET /users/{id}/transfers](#get-usersidtransfers)
   - [GET /users/{id}/wallet](#get-usersidwallet)
   - [GET /health](#get-health)
 - [Regras de negócio](#regras-de-negócio)
-- [Concorrência e Idempotência](#concorrência-e-idempotência)
+- [Concorrência](#concorrência)
 - [Cache](#cache)
 - [Mapa de classes](#mapa-de-classes)
 - [CLI Commands](#cli-commands)
@@ -58,7 +60,7 @@ app/
 │                               TransferNotAuthorizedException
 │
 ├── Application/                # Orquestração dos casos de uso
-│   ├── UseCases/               CreateTransferUseCase.php
+│   ├── UseCases/               CreateTransferUseCase.php, CreateUserUseCase.php
 │   ├── Services/               AuthorizerService.php, NotificationService.php
 │   └── DTOs/                   TransferDTO.php, TransferResultDTO.php
 │
@@ -74,7 +76,7 @@ app/
     ├── Http/
     │   ├── Controllers/        TransferController.php, UserController.php,
     │   │                       HealthController.php, DocsController.php
-    │   └── Middleware/         IdempotencyMiddleware.php
+    │   ├── Exceptions/         ValidationExceptionHandler.php, UnhandledExceptionHandler.php
     └── Console/                SeedUsersCommand.php, SimulateTransferCommand.php,
                                 WalletBalanceCommand.php, TransferListCommand.php
 ```
@@ -94,16 +96,125 @@ docker compose up --build -d
 docker compose exec app php bin/hyperf.php migrate
 
 # 4. Criar usuários de teste
-docker compose exec app php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000
+docker compose exec app php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000000
 
 # API disponível em:
 # http://localhost:9501
 # Swagger UI: http://localhost:9501/docs
+
+# Desenvolvimento com hot-reload:
+docker compose exec app php bin/hyperf.php server:watch
 ```
 
 ---
 
 ## Endpoints
+
+### `POST /users`
+
+Cria um novo usuário e inicializa sua carteira com saldo zero.
+
+**Classe:** `App\Interfaces\Http\Controllers\UserController::store()`
+**Use Case:** `App\Application\UseCases\CreateUserUseCase`
+
+#### Body
+
+```json
+{
+  "name": "João Silva",
+  "document": "12345678901",
+  "email": "joao@example.com",
+  "password": "secret123",
+  "type": "common"
+}
+```
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `name` | `string` | Obrigatório |
+| `document` | `string` | Obrigatório, máximo 18 caracteres, único |
+| `email` | `string` | Obrigatório, formato e-mail, único |
+| `password` | `string` | Obrigatório, mínimo 8 caracteres |
+| `type` | `string` | Obrigatório, `common` ou `merchant` |
+
+#### Respostas
+
+**`201 Created`** — Usuário criado
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "João Silva",
+    "document": "12345678901",
+    "email": "joao@example.com",
+    "type": "common"
+  }
+}
+```
+
+**`422 Unprocessable Entity`** — Validação falhou ou documento/e-mail já em uso
+
+```json
+{
+  "message": "Validation failed.",
+  "errors": {
+    "email": ["The email field is required."]
+  }
+}
+```
+
+```json
+{
+  "message": "The document is already in use."
+}
+```
+
+---
+
+### `POST /users/{id}/wallet/deposit`
+
+Adiciona saldo à carteira do usuário. O valor é informado em **reais** (float) e armazenado internamente em **centavos** (BIGINT).
+
+**Classe:** `App\Interfaces\Http\Controllers\UserController::deposit()`
+
+#### Parâmetros
+
+| Param | Onde | Tipo | Descrição |
+|---|---|---|---|
+| `id` | path | `integer` | ID do usuário |
+
+#### Body
+
+```json
+{
+  "amount": 100.00
+}
+```
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `amount` | `float` | Obrigatório, mínimo `0.01` (em reais) |
+
+#### Respostas
+
+**`200 OK`** — Depósito realizado
+
+```json
+{
+  "data": {
+    "user_id": 1,
+    "balance": 950.00,
+    "from_cache": false
+  }
+}
+```
+
+**`404 Not Found`** — Usuário não encontrado
+
+**`422 Unprocessable Entity`** — Validação falhou
+
+---
 
 ### `POST /transfer`
 
@@ -117,7 +228,6 @@ Realiza uma transferência financeira entre dois usuários.
 | Header | Obrigatório | Descrição |
 |---|---|---|
 | `Content-Type` | sim | `application/json` |
-| `X-Idempotency-Key` | não | UUID único para evitar reprocessamento em retries |
 
 #### Body
 
@@ -273,6 +383,8 @@ Lista o histórico paginado de transferências do usuário (como pagador ou rece
 
 Retorna o saldo atual da carteira do usuário. Lê do cache Redis antes de consultar o banco.
 
+O saldo é armazenado internamente como **BIGINT (centavos)** e retornado como **float (reais)** — `balance = centavos / 100`.
+
 **Classe:** `App\Interfaces\Http\Controllers\UserController::wallet()`
 **Cache:** `App\Infrastructure\Cache\WalletBalanceCache` — chave `wallet:balance:{id}`, TTL 60s
 
@@ -304,7 +416,6 @@ Verifica o estado dos serviços dependentes.
 {
   "status": "ok",
   "checks": {
-    "database": true,
     "redis": true
   }
 }
@@ -316,8 +427,7 @@ Verifica o estado dos serviços dependentes.
 {
   "status": "degraded",
   "checks": {
-    "database": false,
-    "redis": true
+    "redis": false
   }
 }
 ```
@@ -333,12 +443,12 @@ Verifica o estado dos serviços dependentes.
 | Saldo deve ser suficiente | `Wallet::debit()` lança `InsufficientBalanceException` |
 | Transferência exige autorização externa | `AuthorizerService` → `AuthorizerClient` (DeviTools mock) |
 | Notificação é assíncrona | `TransferCreated` event → RabbitMQ → `TransferNotificationConsumer` |
-| CPF/CNPJ e e-mail são únicos | `unique index` na tabela `users` |
-| Saldo armazenado como `DECIMAL(15,2)` | Migration `wallets` |
+| documento (`document`) e e-mail são únicos | `unique index` na tabela `users` |
+| Saldo armazenado como `BIGINT` (centavos) | Migration `wallets` |
 
 ---
 
-## Concorrência e Idempotência
+## Concorrência
 
 ### Distributed Lock (Redis)
 
@@ -362,19 +472,6 @@ SELECT * FROM wallets WHERE user_id = ? FOR UPDATE;
 
 **Classe:** `App\Infrastructure\Repositories\WalletRepository::findByUserIdForUpdate()`
 
-### Idempotency Key
-
-O middleware extrai o header `X-Idempotency-Key` e verifica no Redis:
-
-```
-GET idem:{key}   → HIT: retorna resposta cacheada (header X-Idempotent-Replayed: true)
-                 → MISS: processa e salva com SETEX 86400
-```
-
-Apenas respostas com status `< 500` são cacheadas. TTL: **24 horas**.
-
-**Classe:** `App\Interfaces\Http\Middleware\IdempotencyMiddleware`
-
 ### Circuit Breaker (Autorizador)
 
 O cliente HTTP do autorizador usa `#[CircuitBreaker]` do Hyperf:
@@ -392,7 +489,6 @@ O cliente HTTP do autorizador usa `#[CircuitBreaker]` do Hyperf:
 | Chave | TTL | Invalidação | Classe |
 |---|---|---|---|
 | `wallet:balance:{userId}` | 60s | Após qualquer transferência | `WalletBalanceCache` |
-| `idem:{key}` | 86400s (24h) | Nunca (expira) | `IdempotencyMiddleware` |
 
 A invalidação do saldo ocorre no listener do evento `TransferCreated`, que invalida as carteiras do pagador e do recebedor atomicamente.
 
@@ -418,6 +514,7 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | Classe | Responsabilidade |
 |---|---|
 | `Application\UseCases\CreateTransferUseCase` | Orquestra todo o fluxo: lock → validar → autorizar → transação → evento |
+| `Application\UseCases\CreateUserUseCase` | Valida unicidade de document/email, cria usuário com carteira zerada |
 | `Application\Services\AuthorizerService` | Chama o cliente HTTP e lança exceção se negado |
 | `Application\Services\NotificationService` | Enfileira notificação via RabbitMQ |
 | `Application\DTOs\TransferDTO` | Dados de entrada da transferência |
@@ -442,18 +539,19 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | Classe | Responsabilidade |
 |---|---|
 | `Interfaces\Http\Controllers\TransferController` | `POST /transfer`, `GET /transfer/{id}` |
-| `Interfaces\Http\Controllers\UserController` | `GET /users/{id}/transfers`, `GET /users/{id}/wallet` |
+| `Interfaces\Http\Controllers\UserController` | `POST /users`, `POST /users/{id}/wallet/deposit`, `GET /users/{id}/transfers`, `GET /users/{id}/wallet` |
 | `Interfaces\Http\Controllers\HealthController` | `GET /health` |
 | `Interfaces\Http\Controllers\DocsController` | `GET /docs` (Swagger UI), `GET /docs/openapi.yaml` |
-| `Interfaces\Http\Middleware\IdempotencyMiddleware` | Intercepta POST, verifica/grava chave de idempotência |
+| `Interfaces\Http\Exceptions\ValidationExceptionHandler` | Captura `ValidationException`, retorna 422 |
+| `Interfaces\Http\Exceptions\UnhandledExceptionHandler` | Catch-all para exceções não tratadas, retorna 500 |
 
 ---
 
 ## CLI Commands
 
 ```bash
-# Criar usuários seed
-php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000
+# Criar usuários seed (--balance em centavos: 1000000 = R$ 10.000,00)
+php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000000
 
 # Simular N transferências concorrentes (útil para demonstrar lock)
 php bin/hyperf.php transfer:simulate --count=20 --concurrent=5
@@ -464,6 +562,9 @@ php bin/hyperf.php wallet:balance 1 --fresh
 
 # Listar histórico de transferências
 php bin/hyperf.php transfer:list 1
+
+# Servidor com hot-reload (desenvolvimento)
+php bin/hyperf.php server:watch
 ```
 
 | Comando | Classe |
@@ -500,4 +601,4 @@ vendor/bin/ecs check
 | `Unit\Domain\UserTest` | `assertCanTransfer()` para `common` e `merchant` |
 | `Unit\Domain\TransferTest` | Ciclo de vida do status, validações de criação |
 | `Unit\Application\CreateTransferUseCaseTest` | Merchant bloqueado, autorizador negando, lock distribuído |
-| `Feature\TransferApiTest` | Validação de campos, idempotência, health check |
+| `Feature\TransferApiTest` | Validação de campos, health check |

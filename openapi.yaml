@@ -12,14 +12,12 @@ info:
     - A transferência é consultada num **serviço externo de autorização**.
     - Notificações são enviadas **assincronamente** via RabbitMQ após a conclusão.
 
-    ## Concorrência & Idempotência
+    ## Concorrência
     - **Distributed Lock** (Redis `SET NX EX`) por pagador — impede transferências paralelas do mesmo usuário.
     - **Pessimistic Lock** (`SELECT … FOR UPDATE`) nas carteiras — garante consistência no DB.
-    - **Idempotency Key** via header `X-Idempotency-Key` — evita reprocessamento em retries.
 
     ## Cache
     - Saldo da carteira: chave `wallet:balance:{userId}`, TTL 60s, invalidada após cada transferência.
-    - Resposta idempotente: chave `idem:{key}`, TTL 24h.
   version: 1.0.0
   contact:
     name: Hugo Ferreira
@@ -33,11 +31,235 @@ tags:
   - name: Transfers
     description: Operações de transferência financeira
   - name: Users
-    description: Consulta de usuários e carteiras
+    description: Criação de usuários, consulta de carteiras e histórico de transferências
   - name: System
     description: Health check e diagnóstico
 
 paths:
+  /users:
+    post:
+      tags: [Users]
+      summary: Criar um usuário
+      description: |
+        Cria um novo usuário e inicializa sua carteira com saldo zero.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::store()`
+        **Use Case:** `App\Application\UseCases\CreateUserUseCase`
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+            examples:
+              common:
+                summary: Usuário comum
+                value:
+                  name: João Silva
+                  document: "12345678901"
+                  email: joao@example.com
+                  password: secret123
+                  type: common
+              merchant:
+                summary: Lojista
+                value:
+                  name: Loja ABC
+                  document: "12345678000195"
+                  email: loja@example.com
+                  password: secret123
+                  type: merchant
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                data:
+                  id: 1
+                  name: João Silva
+                  document: "12345678901"
+                  email: joao@example.com
+                  type: common
+        '422':
+          description: Validação falhou ou documento/e-mail já em uso
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Erro de validação
+                  value:
+                    message: Validation failed.
+                    errors:
+                      email: ["The email field is required."]
+                      type: ["The selected type is invalid."]
+                duplicate_document:
+                  summary: Documento já cadastrado
+                  value:
+                    message: The document is already in use.
+                duplicate_email:
+                  summary: E-mail já cadastrado
+                  value:
+                    message: The email is already in use.
+
+  /users/{id}/wallet:
+    get:
+      tags: [Users]
+      summary: Saldo da carteira do usuário
+      description: |
+        Retorna o saldo atual do usuário. Lê do cache Redis (TTL 60s) antes de consultar o banco.
+        O campo `from_cache` indica a origem do dado.
+
+        O saldo é armazenado internamente como **BIGINT (centavos)** e retornado como **float (reais)** — ou seja, `balance = centavos / 100`.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::wallet()`
+
+        **Cache:** `WalletBalanceCache` — chave `wallet:balance:{userId}`, TTL 60s
+      operationId: getUserWallet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Saldo da carteira
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+              example:
+                data:
+                  user_id: 1
+                  balance: 850.00
+                  from_cache: true
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/wallet/deposit:
+    post:
+      tags: [Users]
+      summary: Depositar saldo na carteira
+      description: |
+        Adiciona saldo à carteira do usuário. O valor é informado em **reais** (float) e armazenado internamente em **centavos** (BIGINT).
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::deposit()`
+      operationId: depositWallet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+            example:
+              amount: 100.00
+      responses:
+        '200':
+          description: Depósito realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+              example:
+                data:
+                  user_id: 1
+                  balance: 950.00
+                  from_cache: false
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: User not found.
+        '422':
+          description: Validação falhou
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                message: Validation failed.
+                errors:
+                  amount: ["The amount field must be at least 0.01."]
+
+  /users/{id}/transfers:
+    get:
+      tags: [Users]
+      summary: Histórico de transferências do usuário
+      description: |
+        Lista paginada de transferências onde o usuário foi pagador **ou** recebedor.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::transfers()`
+      operationId: getUserTransfers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            example: 1
+      responses:
+        '200':
+          description: Lista de transferências
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TransferData'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+              example:
+                data:
+                  - id: 42
+                    payer_id: 1
+                    payee_id: 2
+                    amount: 150.00
+                    status: completed
+                    created_at: "2024-06-22 10:30:00"
+                meta:
+                  page: 1
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /transfer:
     post:
       tags: [Transfers]
@@ -55,8 +277,6 @@ paths:
 
         **Classe responsável:** `App\Application\UseCases\CreateTransferUseCase`
       operationId: createTransfer
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -162,111 +382,6 @@ paths:
               example:
                 message: Transfer not found.
 
-  /users/{id}/transfers:
-    get:
-      tags: [Users]
-      summary: Histórico de transferências do usuário
-      description: |
-        Lista paginada de transferências onde o usuário foi pagador **ou** recebedor.
-
-        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::transfers()`
-      operationId: getUserTransfers
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            example: 1
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-            example: 1
-      responses:
-        '200':
-          description: Lista de transferências
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/TransferData'
-                  meta:
-                    type: object
-                    properties:
-                      page:
-                        type: integer
-                        example: 1
-              example:
-                data:
-                  - id: 42
-                    payer_id: 1
-                    payee_id: 2
-                    amount: 150.00
-                    status: completed
-                    created_at: "2024-06-22 10:30:00"
-                meta:
-                  page: 1
-        '404':
-          description: Usuário não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /users/{id}/wallet:
-    get:
-      tags: [Users]
-      summary: Saldo da carteira do usuário
-      description: |
-        Retorna o saldo atual do usuário. Lê do cache Redis (TTL 60s) antes de consultar o banco.
-        O campo `from_cache` indica a origem do dado.
-
-        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::wallet()`
-
-        **Cache:** `WalletBalanceCache` — chave `wallet:balance:{userId}`, TTL 60s
-      operationId: getUserWallet
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            example: 1
-      responses:
-        '200':
-          description: Saldo da carteira
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      user_id:
-                        type: integer
-                        example: 1
-                      balance:
-                        type: number
-                        format: float
-                        example: 850.00
-                      from_cache:
-                        type: boolean
-                        example: true
-                        description: true = dado veio do Redis, false = lido do banco
-        '404':
-          description: Usuário não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /health:
     get:
       tags: [System]
@@ -277,7 +392,6 @@ paths:
         **Classe responsável:** `App\Interfaces\Http\Controllers\HealthController`
 
         Checa:
-        - **database** — `SELECT 1` no MySQL
         - **redis** — `PING` no Redis
       operationId: healthCheck
       responses:
@@ -290,7 +404,6 @@ paths:
               example:
                 status: ok
                 checks:
-                  database: true
                   redis: true
         '503':
           description: Um ou mais serviços degradados
@@ -301,25 +414,96 @@ paths:
               example:
                 status: degraded
                 checks:
-                  database: false
-                  redis: true
+                  redis: false
 
 components:
-  parameters:
-    IdempotencyKey:
-      name: X-Idempotency-Key
-      in: header
-      required: false
-      description: |
-        Chave única para idempotência. Se fornecida, respostas bem-sucedidas são
-        cacheadas por **24h** no Redis. Requisições repetidas com a mesma chave
-        retornam a resposta original sem reprocessar a transferência.
-        Respostas repetidas incluem o header `X-Idempotent-Replayed: true`.
-      schema:
-        type: string
-        example: "550e8400-e29b-41d4-a716-446655440000"
-
   schemas:
+    UserRequest:
+      type: object
+      required: [name, document, email, password, type]
+      properties:
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: João Silva
+        document:
+          type: string
+          maxLength: 18
+          description: CPF (11 dígitos) ou CNPJ (14 dígitos)
+          example: "12345678901"
+        email:
+          type: string
+          format: email
+          description: E-mail único do usuário
+          example: joao@example.com
+        password:
+          type: string
+          minLength: 8
+          description: Senha (mínimo 8 caracteres)
+          example: secret123
+        type:
+          type: string
+          enum: [common, merchant]
+          description: Tipo do usuário
+          example: common
+
+    UserData:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: João Silva
+        document:
+          type: string
+          example: "12345678901"
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        type:
+          type: string
+          enum: [common, merchant]
+          example: common
+
+    UserResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserData'
+
+    DepositRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          description: Valor a depositar em reais (armazenado internamente em centavos)
+          example: 100.00
+
+    WalletResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            balance:
+              type: number
+              format: float
+              description: Saldo em reais (centavos / 100)
+              example: 850.00
+            from_cache:
+              type: boolean
+              description: true = dado veio do Redis, false = lido do banco
+              example: true
+
     TransferRequest:
       type: object
       required: [value, payer, payee]
@@ -356,6 +540,7 @@ components:
         amount:
           type: number
           format: float
+          description: Valor em reais (centavos / 100)
           example: 150.00
         status:
           type: string
@@ -408,9 +593,6 @@ components:
         checks:
           type: object
           properties:
-            database:
-              type: boolean
-              example: true
             redis:
               type: boolean
               example: true
