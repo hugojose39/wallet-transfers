@@ -42,7 +42,7 @@ final class SeedUsersCommand extends HyperfCommand
             for ($i = 1; $i <= $commonCount; $i++) {
                 $user = UserModel::create([
                     'name' => "Common User {$i}",
-                    'cpf_cnpj' => $this->generateCpf($i),
+                    'document' => $this->generateCpf($i),
                     'email' => "common{$i}@wallet.test",
                     'password' => password_hash('secret', PASSWORD_BCRYPT),
                     'type' => 'common',
@@ -55,7 +55,7 @@ final class SeedUsersCommand extends HyperfCommand
             for ($i = 1; $i <= $merchantCount; $i++) {
                 $user = UserModel::create([
                     'name' => "Merchant {$i}",
-                    'cpf_cnpj' => $this->generateCnpj($i),
+                    'document' => $this->generateCnpj($i),
                     'email' => "merchant{$i}@wallet.test",
                     'password' => password_hash('secret', PASSWORD_BCRYPT),
                     'type' => 'merchant',

@@ -9,7 +9,7 @@ use Hyperf\DbConnection\Model\Model;
 /**
  * @property int $id
  * @property string $name
- * @property string $cpf_cnpj
+ * @property string $document
  * @property string $email
  * @property string $password
  * @property string $type
@@ -18,7 +18,7 @@ final class UserModel extends Model
 {
     protected ?string $table = 'users';
 
-    protected array $fillable = ['name', 'cpf_cnpj', 'email', 'password', 'type'];
+    protected array $fillable = ['name', 'document', 'email', 'password', 'type'];
 
     protected array $hidden = ['password'];
 

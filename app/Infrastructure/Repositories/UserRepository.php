@@ -35,7 +35,7 @@ final class UserRepository implements UserRepositoryInterface
 
     public function findByDocument(string $document): ?User
     {
-        $model = UserModel::with('wallet')->where('cpf_cnpj', $document)->first();
+        $model = UserModel::with('wallet')->where('document', $document)->first();
 
         return $model ? $this->toEntity($model) : null;
     }
@@ -52,7 +52,7 @@ final class UserRepository implements UserRepositoryInterface
         return Db::transaction(function () use ($name, $document, $email, $passwordHash, $type): User {
             $userModel = UserModel::create([
                 'name'     => $name,
-                'cpf_cnpj' => $document,
+                'document' => $document,
                 'email'    => $email,
                 'password' => $passwordHash,
                 'type'     => $type->value,
@@ -61,7 +61,6 @@ final class UserRepository implements UserRepositoryInterface
             $walletModel = WalletModel::create([
                 'user_id' => $userModel->id,
                 'balance' => 0,
-                'version' => 0,
             ]);
 
             $userModel->setRelation('wallet', $walletModel);
@@ -78,13 +77,12 @@ final class UserRepository implements UserRepositoryInterface
             id: $walletModel->id,
             userId: $walletModel->user_id,
             balance: (int) $walletModel->balance,
-            version: (int) $walletModel->version,
         );
 
         return new User(
             id: $model->id,
             name: $model->name,
-            cpfCnpj: $model->cpf_cnpj,
+            document: $model->document,
             email: $model->email,
             type: UserType::from($model->type),
             wallet: $wallet,

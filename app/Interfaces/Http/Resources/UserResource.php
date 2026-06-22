@@ -15,7 +15,7 @@ final class UserResource
         return [
             'id' => $this->user->getId(),
             'name' => $this->user->getName(),
-            'document' => $this->user->getCpfCnpj(),
+            'document' => $this->user->getDocument(),
             'email' => $this->user->getEmail(),
             'type' => $this->user->getType()->value,
         ];

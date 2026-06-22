@@ -12,7 +12,7 @@ final class User
     public function __construct(
         private readonly int $id,
         private readonly string $name,
-        private readonly string $cpfCnpj,
+        private readonly string $document,
         private readonly string $email,
         private readonly UserType $type,
         private readonly Wallet $wallet,
@@ -28,9 +28,9 @@ final class User
         return $this->name;
     }
 
-    public function getCpfCnpj(): string
+    public function getDocument(): string
     {
-        return $this->cpfCnpj;
+        return $this->document;
     }
 
     public function getEmail(): string

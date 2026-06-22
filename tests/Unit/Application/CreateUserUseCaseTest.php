@@ -23,7 +23,7 @@ final class CreateUserUseCaseTest extends TestCase
         return new User(
             id: 1,
             name: 'John Doe',
-            cpfCnpj: '123.456.789-00',
+            document: '123.456.789-00',
             email: 'john@example.com',
             type: UserType::COMMON,
             wallet: $wallet,
