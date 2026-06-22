@@ -1,0 +1,72 @@
+{
+    "name": "wallet-transfers/api",
+    "description": "PicPay-style wallet transfer API built with Hyperf 3.x",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1",
+        "hyperf/cache": "^3.1",
+        "hyperf/command": "^3.1",
+        "hyperf/config": "^3.1",
+        "hyperf/database": "^3.1",
+        "hyperf/db-connection": "^3.1",
+        "hyperf/di": "^3.1",
+        "hyperf/event": "^3.1",
+        "hyperf/framework": "^3.1",
+        "hyperf/guzzle": "^3.1",
+        "hyperf/http-server": "^3.1",
+        "hyperf/logger": "^3.1",
+        "hyperf/pool": "^3.1",
+        "hyperf/process": "^3.1",
+        "hyperf/redis": "^3.1",
+        "hyperf/retry": "^3.1",
+        "hyperf/server": "^3.1",
+        "hyperf/amqp": "^3.1",
+        "hyperf/circuit-breaker": "^3.1",
+        "hyperf/validation": "^3.1",
+        "hyperf/model-cache": "^3.1",
+        "hyperf/async-queue": "^3.1"
+    },
+    "require-dev": {
+        "hyperf/testing": "^3.1",
+        "hyperf/devtool": "^3.1",
+        "mockery/mockery": "^1.5",
+        "phpunit/phpunit": "^10.0",
+        "phpstan/phpstan": "^1.10",
+        "symplify/easy-coding-standard": "^12.0",
+        "rector/rector": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "HyperfTest\\": "tests/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "analyse": "phpstan analyse --ansi",
+        "cs-fix": "ecs check --fix",
+        "test": "phpunit --colors=always",
+        "test-coverage": "phpunit --coverage-html coverage/"
+    },
+    "extra": {
+        "hyperf": {
+            "config": "App\\ConfigProvider"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

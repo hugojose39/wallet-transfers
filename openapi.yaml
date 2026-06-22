@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: Wallet Transfers API
+  description: |
+    API REST para transferências financeiras entre usuários e lojistas.
+    Construída com **Hyperf 3.x + Swoole** seguindo arquitetura **DDD Light (Monólito Modular)**.
+
+    ## Regras de negócio
+    - Apenas usuários do tipo **common** podem enviar transferências.
+    - Usuários do tipo **merchant** só podem **receber**.
+    - O saldo do pagador é validado antes da transferência.
+    - A transferência é consultada num **serviço externo de autorização**.
+    - Notificações são enviadas **assincronamente** via RabbitMQ após a conclusão.
+
+    ## Concorrência & Idempotência
+    - **Distributed Lock** (Redis `SET NX EX`) por pagador — impede transferências paralelas do mesmo usuário.
+    - **Pessimistic Lock** (`SELECT … FOR UPDATE`) nas carteiras — garante consistência no DB.
+    - **Idempotency Key** via header `X-Idempotency-Key` — evita reprocessamento em retries.
+
+    ## Cache
+    - Saldo da carteira: chave `wallet:balance:{userId}`, TTL 60s, invalidada após cada transferência.
+    - Resposta idempotente: chave `idem:{key}`, TTL 24h.
+  version: 1.0.0
+  contact:
+    name: Hugo Ferreira
+    email: hugojose39@yahoo.com.br
+
+servers:
+  - url: http://localhost:9501
+    description: Local (Docker)
+
+tags:
+  - name: Transfers
+    description: Operações de transferência financeira
+  - name: Users
+    description: Consulta de usuários e carteiras
+  - name: System
+    description: Health check e diagnóstico
+
+paths:
+  /transfer:
+    post:
+      tags: [Transfers]
+      summary: Realizar uma transferência
+      description: |
+        Executa uma transferência financeira entre dois usuários.
+
+        **Fluxo interno:**
+        1. Valida que o pagador (`payer`) é do tipo `common`
+        2. Valida saldo suficiente (cache-first)
+        3. Consulta serviço externo de autorização (com circuit breaker + retry exponencial)
+        4. Abre transação DB → debita pagador → credita recebedor → salva registro
+        5. Commit → invalida cache de saldo → dispara evento `TransferCreated`
+        6. Listener envia notificação assincronamente via RabbitMQ
+
+        **Classe responsável:** `App\Application\UseCases\CreateTransferUseCase`
+      operationId: createTransfer
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+            examples:
+              valid:
+                summary: Transferência válida
+                value:
+                  value: 150.00
+                  payer: 1
+                  payee: 2
+      responses:
+        '201':
+          description: Transferência concluída com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+              example:
+                message: Transfer completed successfully.
+                data:
+                  id: 42
+                  payer_id: 1
+                  payee_id: 2
+                  amount: 150.00
+                  status: completed
+                  created_at: "2024-06-22 10:30:00"
+        '403':
+          description: Pagador é lojista (merchant) e não pode enviar transferências
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: 'User type "merchant" is not allowed to send transfers.'
+        '409':
+          description: Transferência já em andamento para este pagador (lock distribuído ativo)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: Another transfer is already in progress for this payer. Please try again.
+        '422':
+          description: Validação falhou ou transferência não autorizada pelo serviço externo
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  summary: Erro de validação
+                  value:
+                    message: Validation failed.
+                    errors:
+                      value: ["The value field must be at least 0.01."]
+                      payer: ["The payer field is required."]
+                unauthorized:
+                  summary: Não autorizado pelo serviço externo
+                  value:
+                    message: Transfer was not authorized by the external service.
+                insufficient:
+                  summary: Saldo insuficiente
+                  value:
+                    message: "Insufficient balance. Available: 50.00, Requested: 150.00"
+
+  /transfer/{id}:
+    get:
+      tags: [Transfers]
+      summary: Consultar uma transferência
+      description: |
+        Retorna os detalhes de uma transferência pelo seu ID.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\TransferController::show()`
+      operationId: getTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Transferência encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TransferData'
+        '404':
+          description: Transferência não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: Transfer not found.
+
+  /users/{id}/transfers:
+    get:
+      tags: [Users]
+      summary: Histórico de transferências do usuário
+      description: |
+        Lista paginada de transferências onde o usuário foi pagador **ou** recebedor.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::transfers()`
+      operationId: getUserTransfers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            example: 1
+      responses:
+        '200':
+          description: Lista de transferências
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TransferData'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+              example:
+                data:
+                  - id: 42
+                    payer_id: 1
+                    payee_id: 2
+                    amount: 150.00
+                    status: completed
+                    created_at: "2024-06-22 10:30:00"
+                meta:
+                  page: 1
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/wallet:
+    get:
+      tags: [Users]
+      summary: Saldo da carteira do usuário
+      description: |
+        Retorna o saldo atual do usuário. Lê do cache Redis (TTL 60s) antes de consultar o banco.
+        O campo `from_cache` indica a origem do dado.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\UserController::wallet()`
+
+        **Cache:** `WalletBalanceCache` — chave `wallet:balance:{userId}`, TTL 60s
+      operationId: getUserWallet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Saldo da carteira
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: integer
+                        example: 1
+                      balance:
+                        type: number
+                        format: float
+                        example: 850.00
+                      from_cache:
+                        type: boolean
+                        example: true
+                        description: true = dado veio do Redis, false = lido do banco
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: |
+        Verifica a saúde dos serviços dependentes.
+
+        **Classe responsável:** `App\Interfaces\Http\Controllers\HealthController`
+
+        Checa:
+        - **database** — `SELECT 1` no MySQL
+        - **redis** — `PING` no Redis
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Todos os serviços operacionais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                checks:
+                  database: true
+                  redis: true
+        '503':
+          description: Um ou mais serviços degradados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                checks:
+                  database: false
+                  redis: true
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: X-Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Chave única para idempotência. Se fornecida, respostas bem-sucedidas são
+        cacheadas por **24h** no Redis. Requisições repetidas com a mesma chave
+        retornam a resposta original sem reprocessar a transferência.
+        Respostas repetidas incluem o header `X-Idempotent-Replayed: true`.
+      schema:
+        type: string
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  schemas:
+    TransferRequest:
+      type: object
+      required: [value, payer, payee]
+      properties:
+        value:
+          type: number
+          format: float
+          minimum: 0.01
+          description: Valor a ser transferido (em reais)
+          example: 150.00
+        payer:
+          type: integer
+          minimum: 1
+          description: ID do usuário pagador (deve ser do tipo `common`)
+          example: 1
+        payee:
+          type: integer
+          minimum: 1
+          description: ID do usuário recebedor (pode ser `common` ou `merchant`)
+          example: 2
+
+    TransferData:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        payer_id:
+          type: integer
+          example: 1
+        payee_id:
+          type: integer
+          example: 2
+        amount:
+          type: number
+          format: float
+          example: 150.00
+        status:
+          type: string
+          enum: [pending, authorized, completed, failed]
+          example: completed
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-06-22 10:30:00"
+
+    TransferResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Transfer completed successfully.
+        data:
+          $ref: '#/components/schemas/TransferData'
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: An error occurred.
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Validation failed.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            value: ["The value field must be at least 0.01."]
+            payer: ["The payer field is required."]
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          example: ok
+        checks:
+          type: object
+          properties:
+            database:
+              type: boolean
+              example: true
+            redis:
+              type: boolean
+              example: true

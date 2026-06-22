@@ -1,0 +1,11 @@
+/vendor/
+/.env
+/runtime/
+/coverage/
+/.phpunit.result.cache
+/.phpstan/
+/storage/logs/*.log
+*.swp
+.DS_Store
+/.claude/
+/STUDY_GUIDE.md

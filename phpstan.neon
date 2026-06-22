@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - app
+    excludePaths:
+        - app/Infrastructure/Persistence/Models
+    ignoreErrors:
+        - '#Call to an undefined method Hyperf\\Database\\Model\\Builder#'
+    checkMissingIterableValueType: false
