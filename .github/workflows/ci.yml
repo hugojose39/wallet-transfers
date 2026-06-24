@@ -71,9 +71,9 @@ jobs:
         run: vendor/bin/phpunit --testsuite=Unit --colors=always
 
       - name: Feature tests
-        run: vendor/bin/phpunit --testsuite=Feature --colors=always
+        run: vendor/bin/co-phpunit --testsuite=Feature --colors=always
 
       - name: Coverage report
-        run: vendor/bin/phpunit --coverage-html=coverage/ --coverage-clover=coverage/clover.xml --coverage-text
+        run: vendor/bin/co-phpunit --coverage-html=coverage/ --coverage-clover=coverage/clover.xml --coverage-text
         env:
           XDEBUG_MODE: coverage
