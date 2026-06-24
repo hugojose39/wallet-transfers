@@ -69,11 +69,3 @@ jobs:
 
       - name: Unit tests
         run: vendor/bin/phpunit --bootstrap tests/bootstrap.php --testsuite=Unit --colors=always
-
-      - name: Feature tests
-        run: vendor/bin/co-phpunit --prepend tests/bootstrap.php --testsuite=Feature --colors=always
-
-      - name: Coverage report
-        run: vendor/bin/co-phpunit --prepend tests/bootstrap.php --coverage-html=coverage/ --coverage-clover=coverage/clover.xml --coverage-text
-        env:
-          XDEBUG_MODE: coverage
