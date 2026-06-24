@@ -12,11 +12,15 @@ use App\Domain\Transfer\Entities\Transfer;
 use App\Domain\Transfer\Events\TransferCreated;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Domain\User\Contracts\WalletRepositoryInterface;
+use App\Infrastructure\Cache\WalletBalanceCache;
+use App\Infrastructure\Queue\TransferNotificationProducer;
+use Hyperf\Amqp\Producer as AmqpProducer;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use function Hyperf\Coroutine\co;
 
 final class CreateTransferUseCase
 {
@@ -30,6 +34,8 @@ final class CreateTransferUseCase
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger,
         private readonly Redis $redis,
+        private readonly WalletBalanceCache $walletCache,
+        private readonly AmqpProducer $amqpProducer,
     ) {
     }
 
@@ -57,7 +63,7 @@ final class CreateTransferUseCase
         $payer = $this->userRepository->findByIdOrFail($dto->payerId);
         $payer->assertCanTransfer();
 
-        $payee = $this->userRepository->findByIdOrFail($dto->payeeId);
+        $this->userRepository->findByIdOrFail($dto->payeeId);
 
         $this->logger->info('Starting transfer', [
             'payer_id' => $dto->payerId,
@@ -90,12 +96,9 @@ final class CreateTransferUseCase
             return $this->transferRepository->save($transfer);
         });
 
-        $this->eventDispatcher->dispatch(new TransferCreated(
-            $transfer->getId(),
-            $dto->payerId,
-            $dto->payeeId,
-            $dto->amount,
-        ));
+        $this->walletCache->invalidateMany($dto->payerId, $dto->payeeId);
+
+        $this->dispatchTransferCompletedEvent($transfer, $dto);
 
         $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
@@ -108,5 +111,21 @@ final class CreateTransferUseCase
         ]);
 
         return TransferResultDTO::fromEntity($transfer);
+    }
+
+    private function dispatchTransferCompletedEvent(Transfer $transfer, TransferDTO $dto): void
+    {
+        $event = new TransferCreated(
+            (int) $transfer->getId(),
+            $dto->payerId,
+            $dto->payeeId,
+            $dto->amount,
+        );
+
+        $this->eventDispatcher->dispatch($event);
+
+        co(function () use ($event) {
+            $this->amqpProducer->produce(new TransferNotificationProducer($event));
+        });
     }
 }

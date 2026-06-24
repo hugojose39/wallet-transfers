@@ -8,6 +8,7 @@ RUN set -ex \
     && apk add --no-cache \
        php81-pecl-xdebug \
     && cd /etc/php* \
+    && echo "disable_functions=" > conf.d/00-enable-pcntl.ini \
     && { \
         echo "zend_extension=xdebug.so"; \
         echo "xdebug.mode=coverage"; \

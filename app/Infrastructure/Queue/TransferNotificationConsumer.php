@@ -12,10 +12,11 @@ use PhpAmqpLib\Message\AMQPMessage;
 use Psr\Log\LoggerInterface;
 
 #[Consumer(
-    exchange: 'transfer.notifications',
+    exchange: 'transfer',
     routingKey: 'transfer.notify',
-    queue: 'transfer.notification.queue',
-    nums: 2,
+    queue: 'transfer',
+    name: "TransferNotificationConsumer",
+    nums: 1,
 )]
 final class TransferNotificationConsumer extends ConsumerMessage
 {

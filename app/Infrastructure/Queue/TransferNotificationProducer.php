@@ -4,30 +4,18 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Queue;
 
-use Hyperf\Amqp\Annotation\Producer as ProducerAnnotation;
+use App\Domain\Transfer\Events\TransferCreated;
+use Hyperf\Amqp\Annotation\Producer;
 use Hyperf\Amqp\Message\ProducerMessage;
-use Hyperf\Amqp\Producer;
 
-#[ProducerAnnotation(exchange: 'transfer.notifications', routingKey: 'transfer.notify')]
-final class TransferNotificationMessage extends ProducerMessage
+#[Producer(exchange: 'transfer', routingKey: 'transfer.notify')]
+final class TransferNotificationProducer extends ProducerMessage
 {
-    public function __construct(int $transferId, int $payeeId)
+    public function __construct(TransferCreated $event)
     {
         $this->payload = [
-            'transfer_id' => $transferId,
-            'payee_id' => $payeeId,
+            'transfer_id' => $event->transferId,
+            'payee_id'    => $event->payeeId,
         ];
-    }
-}
-
-class TransferNotificationProducer
-{
-    public function __construct(private readonly Producer $producer)
-    {
-    }
-
-    public function produce(int $transferId, int $payeeId): void
-    {
-        $this->producer->produce(new TransferNotificationMessage($transferId, $payeeId));
     }
 }

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Infrastructure\Http;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Exception\TransferException;
 use function Hyperf\Support\env;
 
 class AuthorizerClient
@@ -21,9 +24,17 @@ class AuthorizerClient
 
     public function authorize(): bool
     {
-        $response = $this->http->get('v2/authorize');
-        $data = json_decode((string) $response->getBody(), true);
+        try {
+            $response = $this->http->get('v2/authorize');
+            $data = json_decode((string) $response->getBody(), true);
 
-        return ($data['data']['authorization'] ?? false) === true;
+            return ($data['data']['authorization'] ?? false) === true;
+        } catch (ClientException $e) {
+            $data = json_decode((string) $e->getResponse()->getBody(), true);
+
+            return ($data['data']['authorization'] ?? false) === true;
+        } catch (ServerException | TransferException $e) {
+            throw $e;
+        }
     }
 }

@@ -15,6 +15,8 @@ use App\Domain\User\Contracts\WalletRepositoryInterface;
 use App\Domain\User\Entities\User;
 use App\Domain\User\Entities\Wallet;
 use App\Domain\User\Enums\UserType;
+use App\Infrastructure\Cache\WalletBalanceCache;
+use Hyperf\Amqp\Producer as AmqpProducer;
 use Hyperf\Redis\Redis;
 use Mockery;
 use Mockery\MockInterface;
@@ -30,6 +32,8 @@ final class CreateTransferUseCaseTest extends TestCase
     private AuthorizerServiceInterface|MockInterface $authorizer;
     private EventDispatcherInterface|MockInterface $dispatcher;
     private Redis|MockInterface $redis;
+    private WalletBalanceCache $walletCache;
+    private AmqpProducer|MockInterface $amqpProducer;
     private CreateTransferUseCase $useCase;
 
     protected function setUp(): void
@@ -40,6 +44,10 @@ final class CreateTransferUseCaseTest extends TestCase
         $this->authorizer = Mockery::mock(AuthorizerServiceInterface::class);
         $this->dispatcher = Mockery::mock(EventDispatcherInterface::class);
         $this->redis = Mockery::mock(Redis::class);
+        $cacheRedis = Mockery::mock(Redis::class);
+        $cacheRedis->shouldIgnoreMissing();
+        $this->walletCache = new WalletBalanceCache($cacheRedis);
+        $this->amqpProducer = Mockery::mock(AmqpProducer::class);
 
         $this->useCase = new CreateTransferUseCase(
             $this->userRepo,
@@ -49,6 +57,8 @@ final class CreateTransferUseCaseTest extends TestCase
             $this->dispatcher,
             new NullLogger(),
             $this->redis,
+            $this->walletCache,
+            $this->amqpProducer,
         );
     }
 

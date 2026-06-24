@@ -1,11 +1,10 @@
-version: '3.8'
-
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: wallet-transfers-app
+    command: ["php", "bin/hyperf.php", "server:watch"]
     ports:
       - "9501:9501"
     volumes:
