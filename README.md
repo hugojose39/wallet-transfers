@@ -584,19 +584,24 @@ php bin/hyperf.php server:watch
 
 ```bash
 # Todos os testes
-vendor/bin/phpunit
+docker compose exec app composer test
 
 # Apenas unitários
-vendor/bin/phpunit --testsuite=Unit
+docker compose exec app composer test -- --testsuite=Unit
 
-# Com cobertura
-vendor/bin/phpunit --coverage-html=coverage/
+# Apenas features
+docker compose exec app composer test -- --testsuite=Feature
+
+# Com cobertura (mínimo 90% exigido)
+docker compose exec app composer test-coverage
+# Relatório HTML: coverage/index.html
+# Relatório Clover: coverage/clover.xml
 
 # Análise estática
-vendor/bin/phpstan analyse
+docker compose exec app composer analyse
 
 # Padrão de código
-vendor/bin/ecs check
+docker compose exec app vendor/bin/ecs check
 ```
 
 | Suite | Arquivo | O que cobre |
