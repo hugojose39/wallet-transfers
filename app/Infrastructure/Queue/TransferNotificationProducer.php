@@ -20,7 +20,7 @@ final class TransferNotificationMessage extends ProducerMessage
     }
 }
 
-final class TransferNotificationProducer
+class TransferNotificationProducer
 {
     public function __construct(private readonly Producer $producer) {}
 

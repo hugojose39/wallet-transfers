@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace HyperfTest\Unit\Application;
 
 use App\Application\DTOs\TransferDTO;
-use App\Application\Services\AuthorizerService;
-use App\Application\Services\NotificationService;
+use App\Application\Services\AuthorizerServiceInterface;
 use App\Application\UseCases\CreateTransferUseCase;
 use App\Domain\Shared\Exceptions\InsufficientBalanceException;
 use App\Domain\Shared\Exceptions\TransferNotAuthorizedException;
@@ -32,8 +31,7 @@ final class CreateTransferUseCaseTest extends TestCase
     private UserRepositoryInterface|MockInterface $userRepo;
     private WalletRepositoryInterface|MockInterface $walletRepo;
     private TransferRepositoryInterface|MockInterface $transferRepo;
-    private AuthorizerService|MockInterface $authorizer;
-    private NotificationService|MockInterface $notification;
+    private AuthorizerServiceInterface|MockInterface $authorizer;
     private EventDispatcherInterface|MockInterface $dispatcher;
     private Redis|MockInterface $redis;
     private CreateTransferUseCase $useCase;
@@ -43,8 +41,7 @@ final class CreateTransferUseCaseTest extends TestCase
         $this->userRepo = Mockery::mock(UserRepositoryInterface::class);
         $this->walletRepo = Mockery::mock(WalletRepositoryInterface::class);
         $this->transferRepo = Mockery::mock(TransferRepositoryInterface::class);
-        $this->authorizer = Mockery::mock(AuthorizerService::class);
-        $this->notification = Mockery::mock(NotificationService::class);
+        $this->authorizer = Mockery::mock(AuthorizerServiceInterface::class);
         $this->dispatcher = Mockery::mock(EventDispatcherInterface::class);
         $this->redis = Mockery::mock(Redis::class);
 
@@ -53,7 +50,6 @@ final class CreateTransferUseCaseTest extends TestCase
             $this->walletRepo,
             $this->transferRepo,
             $this->authorizer,
-            $this->notification,
             $this->dispatcher,
             new NullLogger(),
             $this->redis,

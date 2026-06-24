@@ -8,7 +8,7 @@ use App\Domain\Shared\Exceptions\TransferNotAuthorizedException;
 use App\Infrastructure\Http\AuthorizerClient;
 use Psr\Log\LoggerInterface;
 
-final class AuthorizerService
+final class AuthorizerService implements AuthorizerServiceInterface
 {
     public function __construct(
         private readonly AuthorizerClient $client,

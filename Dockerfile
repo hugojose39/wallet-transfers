@@ -1,5 +1,23 @@
 FROM hyperf/hyperf:8.1-alpine-v3.18-swoole-v5
 
+ARG timezone
+
+ENV TIMEZONE=${timezone:-"America/Sao_Paulo"}
+
+RUN set -ex \
+    && apk add --no-cache \
+       php81-pecl-xdebug \
+    && cd /etc/php* \
+    && { \
+        echo "zend_extension=xdebug.so"; \
+        echo "xdebug.mode=coverage"; \
+        echo "xdebug.start_without_request=yes"; \
+        echo "memory_limit=1G"; \
+        echo "date.timezone=${TIMEZONE}"; \
+    } | tee conf.d/50_xdebug.ini \
+    && rm -rf /var/cache/apk/* /tmp/* \
+    && echo -e "\033[42;37m Build Completed :).\033[0m\n"
+
 WORKDIR /var/www/html
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

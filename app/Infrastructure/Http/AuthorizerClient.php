@@ -7,7 +7,7 @@ namespace App\Infrastructure\Http;
 use GuzzleHttp\Client;
 use function Hyperf\Support\env;
 
-final class AuthorizerClient
+class AuthorizerClient
 {
     private Client $http;
 

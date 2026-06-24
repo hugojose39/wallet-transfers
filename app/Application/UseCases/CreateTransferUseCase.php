@@ -6,7 +6,7 @@ namespace App\Application\UseCases;
 
 use App\Application\DTOs\TransferDTO;
 use App\Application\DTOs\TransferResultDTO;
-use App\Application\Services\AuthorizerService;
+use App\Application\Services\AuthorizerServiceInterface;
 use App\Domain\Transfer\Contracts\TransferRepositoryInterface;
 use App\Domain\Transfer\Entities\Transfer;
 use App\Domain\Transfer\Events\TransferCreated;
@@ -26,7 +26,7 @@ final class CreateTransferUseCase
         private readonly UserRepositoryInterface $userRepository,
         private readonly WalletRepositoryInterface $walletRepository,
         private readonly TransferRepositoryInterface $transferRepository,
-        private readonly AuthorizerService $authorizerService,
+        private readonly AuthorizerServiceInterface $authorizerService,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger,
         private readonly Redis $redis,

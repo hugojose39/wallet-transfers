@@ -18,7 +18,7 @@ final class CreateUserUseCaseTest extends TestCase
 {
     private function makeUser(): User
     {
-        $wallet = new Wallet(id: 1, userId: 1, balance: 0, version: 0);
+        $wallet = new Wallet(id: 1, userId: 1, balance: 0);
 
         return new User(
             id: 1,

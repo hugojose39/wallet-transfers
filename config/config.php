@@ -8,7 +8,7 @@ use Psr\Log\LogLevel;
 return [
     'app_name' => env('APP_NAME', 'WalletTransfers'),
     'app_env' => env('APP_ENV', 'production'),
-    'scan_cacheable' => env('SCAN_CACHEABLE', false),
+    'scan_cacheable' => filter_var(env('SCAN_CACHEABLE', false), FILTER_VALIDATE_BOOLEAN),
     StdoutLoggerInterface::class => [
         'log_level' => [
             LogLevel::ALERT,

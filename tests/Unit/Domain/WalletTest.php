@@ -64,4 +64,16 @@ final class WalletTest extends TestCase
         $this->assertTrue($wallet->hasEnoughBalance(10000));
         $this->assertFalse($wallet->hasEnoughBalance(10001));
     }
+
+    public function testGetId(): void
+    {
+        $wallet = new Wallet(5, 1, 0);
+        $this->assertSame(5, $wallet->getId());
+    }
+
+    public function testGetUserId(): void
+    {
+        $wallet = new Wallet(1, 42, 0);
+        $this->assertSame(42, $wallet->getUserId());
+    }
 }

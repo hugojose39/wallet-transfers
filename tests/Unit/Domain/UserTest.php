@@ -14,7 +14,7 @@ final class UserTest extends TestCase
 {
     private function makeWallet(): Wallet
     {
-        return new Wallet(1, 1, 500.00);
+        return new Wallet(1, 1, 500);
     }
 
     public function testCommonUserCanTransfer(): void
@@ -38,5 +38,16 @@ final class UserTest extends TestCase
         $user = new User(1, 'Shop', '12.345.678/0001-00', 'shop@test.com', UserType::MERCHANT, $this->makeWallet());
 
         $this->assertTrue($user->isMerchant());
+    }
+
+    public function testUserGetters(): void
+    {
+        $wallet = $this->makeWallet();
+        $user = new User(1, 'Alice', '123.456.789-00', 'alice@test.com', UserType::COMMON, $wallet);
+
+        $this->assertSame('123.456.789-00', $user->getDocument());
+        $this->assertSame('alice@test.com', $user->getEmail());
+        $this->assertSame(UserType::COMMON, $user->getType());
+        $this->assertSame($wallet, $user->getWallet());
     }
 }

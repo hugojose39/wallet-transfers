@@ -59,8 +59,11 @@
         ],
         "analyse": "phpstan analyse --ansi",
         "cs-fix": "ecs check --fix",
-        "test": "phpunit --colors=always",
-        "test-coverage": "phpunit --coverage-html coverage/"
+        "test": "co-phpunit --prepend tests/bootstrap.php --colors=always --no-coverage",
+        "test-coverage": [
+            "co-phpunit --prepend tests/bootstrap.php --colors=always",
+            "@php bin/coverage-check.php 90"
+        ]
     },
     "extra": {
         "hyperf": {
