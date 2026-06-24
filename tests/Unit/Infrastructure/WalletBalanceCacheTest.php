@@ -5,55 +5,69 @@ declare(strict_types=1);
 namespace HyperfTest\Unit\Infrastructure;
 
 use App\Infrastructure\Cache\WalletBalanceCache;
+use Hyperf\Redis\Redis;
+use Mockery;
+use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-
-use function Hyperf\Support\make;
 
 final class WalletBalanceCacheTest extends TestCase
 {
     private WalletBalanceCache $cache;
-    private int $userId;
+
+    /** @var Redis&MockInterface */
+    private Redis $redis;
 
     protected function setUp(): void
     {
-        $this->cache = make(WalletBalanceCache::class);
-        $this->userId = random_int(100000, 999999);
+        $this->redis = Mockery::mock(Redis::class);
+        $this->cache = new WalletBalanceCache($this->redis);
     }
 
     protected function tearDown(): void
     {
-        $this->cache->invalidate($this->userId);
+        Mockery::close();
     }
 
     public function testSetAndGet(): void
     {
-        $this->cache->set($this->userId, 50000);
+        $this->redis->shouldReceive('setex')
+            ->with('wallet:balance:1', 60, '50000')
+            ->once();
+        $this->redis->shouldReceive('get')
+            ->with('wallet:balance:1')
+            ->andReturn('50000');
 
-        $this->assertSame(50000, $this->cache->get($this->userId));
+        $this->cache->set(1, 50000);
+
+        $this->assertSame(50000, $this->cache->get(1));
     }
 
     public function testGetReturnsNullWhenNotFound(): void
     {
-        $this->assertNull($this->cache->get(PHP_INT_MAX));
+        $this->redis->shouldReceive('get')
+            ->with('wallet:balance:999')
+            ->andReturn(false);
+
+        $this->assertNull($this->cache->get(999));
     }
 
     public function testInvalidate(): void
     {
-        $this->cache->set($this->userId, 10000);
-        $this->cache->invalidate($this->userId);
+        $this->redis->shouldReceive('del')
+            ->with('wallet:balance:1')
+            ->once();
 
-        $this->assertNull($this->cache->get($this->userId));
+        $this->cache->invalidate(1);
+        $this->addToAssertionCount(1);
     }
 
     public function testInvalidateMany(): void
     {
-        $id2 = $this->userId + 1;
-        $this->cache->set($this->userId, 1000);
-        $this->cache->set($id2, 2000);
+        $this->redis->shouldReceive('del')
+            ->with('wallet:balance:1', 'wallet:balance:2')
+            ->once();
 
-        $this->cache->invalidateMany($this->userId, $id2);
-
-        $this->assertNull($this->cache->get($this->userId));
-        $this->assertNull($this->cache->get($id2));
+        $this->cache->invalidateMany(1, 2);
+        $this->addToAssertionCount(1);
     }
 }
