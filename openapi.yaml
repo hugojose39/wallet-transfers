@@ -273,7 +273,7 @@ paths:
         3. Consulta serviço externo de autorização (com retry exponencial)
         4. Abre transação DB → debita pagador → credita recebedor → salva registro
         5. Commit → invalida cache de saldo → dispara evento `TransferCreated`
-        6. Listener envia notificação assincronamente via RabbitMQ
+        6. Publica mensagem na fila RabbitMQ para notificação assíncrona
 
         **Classe responsável:** `App\Application\UseCases\CreateTransferUseCase`
       operationId: createTransfer

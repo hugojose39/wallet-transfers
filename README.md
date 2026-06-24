@@ -61,7 +61,7 @@ app/
 │
 ├── Application/                # Orquestração dos casos de uso
 │   ├── UseCases/               CreateTransferUseCase.php, CreateUserUseCase.php
-│   ├── Services/               AuthorizerService.php, NotificationService.php
+│   ├── Services/               AuthorizerService.php
 │   └── DTOs/                   TransferDTO.php, TransferResultDTO.php
 │
 ├── Infrastructure/             # Implementações concretas (DB, Redis, HTTP, Fila)
@@ -69,8 +69,7 @@ app/
 │   ├── Persistence/Models/     UserModel.php, WalletModel.php, TransferModel.php
 │   ├── Cache/                  WalletBalanceCache.php
 │   ├── Http/                   AuthorizerClient.php, NotifierClient.php
-│   ├── Queue/                  TransferNotificationProducer.php, TransferNotificationConsumer.php
-│   └── Listeners/              InvalidateWalletCacheListener.php
+│   └── Queue/                  TransferNotificationProducer.php, TransferNotificationConsumer.php
 │
 └── Interfaces/                 # Entradas do sistema (HTTP + CLI)
     ├── Http/
@@ -480,9 +479,7 @@ SELECT * FROM wallets WHERE user_id = ? FOR UPDATE;
 |---|---|---|---|
 | `wallet:balance:{userId}` | 60s | Após qualquer transferência | `WalletBalanceCache` |
 
-A invalidação do saldo ocorre no listener do evento `TransferCreated`, que invalida as carteiras do pagador e do recebedor atomicamente.
-
-**Classe:** `App\Infrastructure\Listeners\InvalidateWalletCacheListener`
+A invalidação ocorre diretamente no `CreateTransferUseCase` após o commit da transação.
 
 ---
 
@@ -510,11 +507,10 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 
 | Classe | Responsabilidade |
 |---|---|
-| `Application\UseCases\CreateTransferUseCase` | Orquestra todo o fluxo: lock → validar → autorizar → transação → evento |
+| `Application\UseCases\CreateTransferUseCase` | Orquestra todo o fluxo: lock → validar → autorizar → transação → notificação async |
 | `Application\UseCases\CreateUserUseCase` | Valida unicidade de document/email, cria usuário com carteira zerada |
 | `Application\Services\AuthorizerServiceInterface` | Contrato do serviço de autorização (injeção de dependência) |
 | `Application\Services\AuthorizerService` | Chama o cliente HTTP e lança exceção se negado |
-| `Application\Services\NotificationService` | Enfileira notificação via RabbitMQ |
 | `Application\DTOs\CreateUserDTO` | Dados de entrada para criação de usuário |
 | `Application\DTOs\TransferDTO` | Dados de entrada para criação de transferência |
 | `Application\DTOs\TransferResultDTO` | Dados de saída da transferência (response) |
@@ -532,9 +528,8 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | `Infrastructure\Cache\WalletBalanceCache` | Abstração do Redis para saldo |
 | `Infrastructure\Http\AuthorizerClient` | HTTP para DeviTools com `#[Retry]` e backoff exponencial |
 | `Infrastructure\Http\NotifierClient` | HTTP para serviço de notificação |
-| `Infrastructure\Queue\TransferNotificationProducer` | Publica mensagem no RabbitMQ |
-| `Infrastructure\Queue\TransferNotificationConsumer` | Consome e envia notificação; requeue em falha |
-| `Infrastructure\Listeners\InvalidateWalletCacheListener` | Ouve `TransferCreated` → invalida cache + enfileira notificação |
+| `Infrastructure\Queue\TransferNotificationProducer` | `ProducerMessage` AMQP — serializa `TransferCreated` para a fila |
+| `Infrastructure\Queue\TransferNotificationConsumer` | Consome fila `transfer`, chama notificador HTTP; requeue em falha |
 
 ### Interfaces
 
@@ -617,7 +612,6 @@ vendor/bin/ecs check
 | Unit | `Unit\Application\TransferResultDTOTest` | Serialização do resultado |
 | Unit | `Unit\Infrastructure\AuthorizerClientTest` | Circuit breaker, retry, resposta do autorizador |
 | Unit | `Unit\Infrastructure\AuthorizerServiceTest` | Lança exceção quando negado |
-| Unit | `Unit\Infrastructure\NotificationServiceTest` | Publicação na fila |
 | Unit | `Unit\Infrastructure\WalletBalanceCacheTest` | Set/get/invalidation no Redis |
 | Unit | `Unit\Infrastructure\ExceptionHandlersTest` | Mapeamento de exceções para HTTP status |
 | Unit | `Unit\Infrastructure\HealthControllerTest` | Health check com Redis up/down |

@@ -21,7 +21,6 @@ use Hyperf\Redis\Redis;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\NullLogger;
 
 final class CreateTransferUseCaseTest extends TestCase
@@ -30,7 +29,6 @@ final class CreateTransferUseCaseTest extends TestCase
     private WalletRepositoryInterface|MockInterface $walletRepo;
     private TransferRepositoryInterface|MockInterface $transferRepo;
     private AuthorizerServiceInterface|MockInterface $authorizer;
-    private EventDispatcherInterface|MockInterface $dispatcher;
     private Redis|MockInterface $redis;
     private WalletBalanceCache $walletCache;
     private AmqpProducer|MockInterface $amqpProducer;
@@ -42,7 +40,6 @@ final class CreateTransferUseCaseTest extends TestCase
         $this->walletRepo = Mockery::mock(WalletRepositoryInterface::class);
         $this->transferRepo = Mockery::mock(TransferRepositoryInterface::class);
         $this->authorizer = Mockery::mock(AuthorizerServiceInterface::class);
-        $this->dispatcher = Mockery::mock(EventDispatcherInterface::class);
         $this->redis = Mockery::mock(Redis::class);
         $cacheRedis = Mockery::mock(Redis::class);
         $cacheRedis->shouldIgnoreMissing();
@@ -54,7 +51,6 @@ final class CreateTransferUseCaseTest extends TestCase
             $this->walletRepo,
             $this->transferRepo,
             $this->authorizer,
-            $this->dispatcher,
             new NullLogger(),
             $this->redis,
             $this->walletCache,

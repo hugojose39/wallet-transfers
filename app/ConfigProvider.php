@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Application\Services\AuthorizerServiceInterface;
 use App\Application\Services\AuthorizerService;
+use App\Application\Services\AuthorizerServiceInterface;
 use App\Domain\Transfer\Contracts\TransferRepositoryInterface;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Domain\User\Contracts\WalletRepositoryInterface;
@@ -23,10 +23,10 @@ class ConfigProvider
     {
         return [
             'dependencies' => [
-                UserRepositoryInterface::class      => UserRepository::class,
-                WalletRepositoryInterface::class    => WalletRepository::class,
-                TransferRepositoryInterface::class  => TransferRepository::class,
-                AuthorizerServiceInterface::class   => AuthorizerService::class,
+                UserRepositoryInterface::class => UserRepository::class,
+                WalletRepositoryInterface::class => WalletRepository::class,
+                TransferRepositoryInterface::class => TransferRepository::class,
+                AuthorizerServiceInterface::class => AuthorizerService::class,
             ],
             'commands' => [
                 SeedUsersCommand::class,

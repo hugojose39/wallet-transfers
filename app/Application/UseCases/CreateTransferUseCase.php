@@ -17,7 +17,6 @@ use App\Infrastructure\Queue\TransferNotificationProducer;
 use Hyperf\Amqp\Producer as AmqpProducer;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use function Hyperf\Coroutine\co;
@@ -31,7 +30,6 @@ final class CreateTransferUseCase
         private readonly WalletRepositoryInterface $walletRepository,
         private readonly TransferRepositoryInterface $transferRepository,
         private readonly AuthorizerServiceInterface $authorizerService,
-        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger,
         private readonly Redis $redis,
         private readonly WalletBalanceCache $walletCache,
@@ -98,7 +96,7 @@ final class CreateTransferUseCase
 
         $this->walletCache->invalidateMany($dto->payerId, $dto->payeeId);
 
-        $this->dispatchTransferCompletedEvent($transfer, $dto);
+        $this->notifyAsync($transfer, $dto);
 
         $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
@@ -113,7 +111,7 @@ final class CreateTransferUseCase
         return TransferResultDTO::fromEntity($transfer);
     }
 
-    private function dispatchTransferCompletedEvent(Transfer $transfer, TransferDTO $dto): void
+    private function notifyAsync(Transfer $transfer, TransferDTO $dto): void
     {
         $event = new TransferCreated(
             (int) $transfer->getId(),
@@ -121,8 +119,6 @@ final class CreateTransferUseCase
             $dto->payeeId,
             $dto->amount,
         );
-
-        $this->eventDispatcher->dispatch($event);
 
         co(function () use ($event) {
             $this->amqpProducer->produce(new TransferNotificationProducer($event));

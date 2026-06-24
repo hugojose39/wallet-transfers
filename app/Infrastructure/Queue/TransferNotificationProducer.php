@@ -15,7 +15,7 @@ final class TransferNotificationProducer extends ProducerMessage
     {
         $this->payload = [
             'transfer_id' => $event->transferId,
-            'payee_id'    => $event->payeeId,
+            'payee_id' => $event->payeeId,
         ];
     }
 }
