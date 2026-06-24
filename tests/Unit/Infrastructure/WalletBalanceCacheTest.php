@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace HyperfTest\Unit\Infrastructure;
 
 use App\Infrastructure\Cache\WalletBalanceCache;
-use Hyperf\Context\ApplicationContext;
 use PHPUnit\Framework\TestCase;
 
 use function Hyperf\Support\make;

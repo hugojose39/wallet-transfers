@@ -29,7 +29,8 @@ final class UserController
         private readonly TransferRepositoryInterface $transferRepository,
         private readonly WalletBalanceCache $balanceCache,
         private readonly CreateUserUseCase $useCase,
-    ) {}
+    ) {
+    }
 
     public function store(StoreUserRequest $request, ResponseInterface $response): PsrResponseInterface
     {
@@ -100,7 +101,7 @@ final class UserController
         $cached = $this->balanceCache->get($id);
         $fromCache = $cached !== null;
 
-        if (! $fromCache) {
+        if (!$fromCache) {
             $this->balanceCache->set($id, $user->getWallet()->getBalance());
         }
 

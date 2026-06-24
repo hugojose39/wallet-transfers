@@ -18,10 +18,10 @@ final class UnhandledExceptionHandler extends ExceptionHandler
         return $response
             ->withStatus(500)
             ->withAddedHeader('Content-Type', 'application/json')
-            ->withBody(new SwooleStream(json_encode([
+            ->withBody(new SwooleStream((string) json_encode([
                 'message' => 'Internal Server Error',
-                'error'   => $throwable->getMessage(),
-                'class'   => get_class($throwable),
+                'error' => $throwable->getMessage(),
+                'class' => get_class($throwable),
             ])));
     }
 

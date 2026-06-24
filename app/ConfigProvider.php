@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Application\Services\AuthorizerService;
-use App\Application\Services\NotificationService;
 use App\Domain\Transfer\Contracts\TransferRepositoryInterface;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Domain\User\Contracts\WalletRepositoryInterface;

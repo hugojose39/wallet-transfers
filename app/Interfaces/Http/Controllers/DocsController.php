@@ -53,7 +53,7 @@ HTML;
     {
         $yamlPath = BASE_PATH . '/openapi.yaml';
 
-        if (! file_exists($yamlPath)) {
+        if (!file_exists($yamlPath)) {
             return $response->json(['error' => 'OpenAPI spec not found.'])->withStatus(404);
         }
 

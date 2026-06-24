@@ -48,7 +48,7 @@ final class SimulateTransferCommand extends HyperfCommand
         $results = ['success' => 0, 'failed' => 0];
         $channel = new \Swoole\Coroutine\Channel($concurrent);
 
-        \Swoole\Coroutine\run(function () use ($count, $concurrent, $commonUsers, $allUsers, $wg, &$results, $channel) {
+        \Swoole\Coroutine\run(function () use ($count, $commonUsers, $allUsers, $wg, &$results, $channel) {
             for ($i = 0; $i < $count; $i++) {
                 $channel->push(1);
                 $wg->add();
@@ -59,7 +59,7 @@ final class SimulateTransferCommand extends HyperfCommand
                         $payees = array_filter($allUsers, fn ($id) => $id !== $payer);
                         $payee = array_values($payees)[array_rand($payees)];
 
-                        $this->useCase->execute(new TransferDTO($payer, $payee, 1.00));
+                        $this->useCase->execute(new TransferDTO($payer, $payee, 100));
                         $results['success']++;
                     } catch (\Throwable) {
                         $results['failed']++;

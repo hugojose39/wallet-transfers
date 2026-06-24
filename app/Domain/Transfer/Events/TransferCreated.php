@@ -11,5 +11,6 @@ final class TransferCreated
         public readonly int $payerId,
         public readonly int $payeeId,
         public readonly float $amount,
-    ) {}
+    ) {
+    }
 }

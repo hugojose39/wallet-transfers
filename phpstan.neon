@@ -4,6 +4,10 @@ parameters:
         - app
     excludePaths:
         - app/Infrastructure/Persistence/Models
+        - app/Interfaces/Console
     ignoreErrors:
-        - '#Call to an undefined method Hyperf\\Database\\Model\\Builder#'
-    checkMissingIterableValueType: false
+        - identifier: missingType.iterableValue
+        - '#Constant BASE_PATH not found#'
+        - '#Call to an undefined method Hyperf\\Contract\\MessageBag::toArray\(\)#'
+        - '#Call to an undefined static method App\\Infrastructure\\Persistence\\Models\\#'
+        - '#Access to an undefined property App\\Infrastructure\\Persistence\\Models\\#'

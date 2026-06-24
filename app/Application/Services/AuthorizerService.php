@@ -13,7 +13,8 @@ final class AuthorizerService implements AuthorizerServiceInterface
     public function __construct(
         private readonly AuthorizerClient $client,
         private readonly LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     public function authorize(int $payerId, int $payeeId, float $amount): void
     {
@@ -25,7 +26,7 @@ final class AuthorizerService implements AuthorizerServiceInterface
 
         $authorized = $this->client->authorize();
 
-        if (! $authorized) {
+        if (!$authorized) {
             $this->logger->warning('Transfer not authorized by external service', [
                 'payer_id' => $payerId,
                 'amount' => $amount,

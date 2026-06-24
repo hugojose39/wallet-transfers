@@ -51,11 +51,11 @@ final class UserRepository implements UserRepositoryInterface
     {
         return Db::transaction(function () use ($name, $document, $email, $passwordHash, $type): User {
             $userModel = UserModel::create([
-                'name'     => $name,
+                'name' => $name,
                 'document' => $document,
-                'email'    => $email,
+                'email' => $email,
                 'password' => $passwordHash,
-                'type'     => $type->value,
+                'type' => $type->value,
             ]);
 
             $walletModel = WalletModel::create([

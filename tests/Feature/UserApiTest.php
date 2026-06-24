@@ -22,11 +22,11 @@ final class UserApiTest extends HttpTestCase
     {
         $uid = uniqid();
         return [
-            'name'     => 'Test User ' . $uid,
+            'name' => 'Test User ' . $uid,
             'document' => $this->uniqueDoc(),
-            'email'    => 'user_' . $uid . '@test.com',
+            'email' => 'user_' . $uid . '@test.com',
             'password' => 'password123',
-            'type'     => $type,
+            'type' => $type,
         ];
     }
 

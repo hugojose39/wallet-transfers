@@ -13,9 +13,9 @@ use App\Domain\Transfer\Events\TransferCreated;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Domain\User\Contracts\WalletRepositoryInterface;
 use Hyperf\DbConnection\Db;
+use Hyperf\Redis\Redis;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
-use Hyperf\Redis\Redis;
 use RuntimeException;
 
 final class CreateTransferUseCase
@@ -30,7 +30,8 @@ final class CreateTransferUseCase
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger,
         private readonly Redis $redis,
-    ) {}
+    ) {
+    }
 
     public function execute(TransferDTO $dto): TransferResultDTO
     {
@@ -38,7 +39,7 @@ final class CreateTransferUseCase
 
         $acquired = $this->redis->set($lockKey, '1', ['NX', 'EX' => self::DISTRIBUTED_LOCK_TTL]);
 
-        if (! $acquired) {
+        if (!$acquired) {
             throw new RuntimeException('Another transfer is already in progress for this payer. Please try again.');
         }
 

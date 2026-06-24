@@ -41,7 +41,7 @@ final class WalletBalanceCommand extends HyperfCommand
             return;
         }
 
-        if (! $fresh) {
+        if (!$fresh) {
             $cached = $this->cache->get($userId);
             if ($cached !== null) {
                 $this->line("Balance for user {$userId}: <info>{$cached}</info> (from cache)");
@@ -50,7 +50,7 @@ final class WalletBalanceCommand extends HyperfCommand
         }
 
         $wallet = WalletModel::where('user_id', $userId)->first();
-        $balance = $wallet ? (float) $wallet->balance : 0.0;
+        $balance = $wallet ? (int) $wallet->balance : 0;
 
         $this->cache->set($userId, $balance);
         $this->line("Balance for user {$userId}: <info>{$balance}</info> (from database)");

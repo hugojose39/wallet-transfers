@@ -11,7 +11,8 @@ final class WalletResource
     public function __construct(
         private readonly Wallet $wallet,
         private readonly bool $fromCache = false,
-    ) {}
+    ) {
+    }
 
     public function toArray(): array
     {

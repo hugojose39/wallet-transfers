@@ -22,7 +22,8 @@ final class TransferNotificationConsumer extends ConsumerMessage
     public function __construct(
         private readonly NotifierClient $notifierClient,
         private readonly LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     public function consumeMessage(mixed $data, AMQPMessage $message): Result
     {

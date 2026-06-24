@@ -45,7 +45,7 @@ final class Wallet
             throw new InvalidArgumentException('Debit amount must be positive.');
         }
 
-        if (! $this->hasEnoughBalance($amount)) {
+        if (!$this->hasEnoughBalance($amount)) {
             throw new InsufficientBalanceException(
                 sprintf(
                     'Insufficient balance. Available: R$ %s, Requested: R$ %s',

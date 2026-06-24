@@ -17,7 +17,8 @@ final class InvalidateWalletCacheListener implements ListenerProviderInterface
     public function __construct(
         private readonly WalletBalanceCache $cache,
         private readonly Producer $producer,
-    ) {}
+    ) {
+    }
 
     public function getListenersForEvent(object $event): iterable
     {

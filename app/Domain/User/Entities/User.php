@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\User\Entities;
 
-use App\Domain\User\Enums\UserType;
 use App\Domain\Shared\Exceptions\UnauthorizedTransferException;
+use App\Domain\User\Enums\UserType;
 
 final class User
 {
@@ -16,7 +16,8 @@ final class User
         private readonly string $email,
         private readonly UserType $type,
         private readonly Wallet $wallet,
-    ) {}
+    ) {
+    }
 
     public function getId(): int
     {
@@ -50,7 +51,7 @@ final class User
 
     public function assertCanTransfer(): void
     {
-        if (! $this->type->canSend()) {
+        if (!$this->type->canSend()) {
             throw new UnauthorizedTransferException(
                 sprintf('User type "%s" is not allowed to send transfers.', $this->type->value)
             );

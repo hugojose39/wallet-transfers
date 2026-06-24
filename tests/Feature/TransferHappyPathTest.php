@@ -28,8 +28,10 @@ final class TransferHappyPathTest extends HttpTestCase
 
         $container->set(
             AuthorizerServiceInterface::class,
-            new class implements AuthorizerServiceInterface {
-                public function authorize(int $payerId, int $payeeId, float $amount): void {}
+            new class() implements AuthorizerServiceInterface {
+                public function authorize(int $payerId, int $payeeId, float $amount): void
+                {
+                }
             }
         );
     }
@@ -41,11 +43,11 @@ final class TransferHappyPathTest extends HttpTestCase
 
         $response = $this->client->request('POST', '/users', [
             'form_params' => [
-                'name'     => 'User ' . self::$seq,
+                'name' => 'User ' . self::$seq,
                 'document' => $doc,
-                'email'    => 'u' . self::$seq . '@happy.test',
+                'email' => 'u' . self::$seq . '@happy.test',
                 'password' => 'password123',
-                'type'     => $type,
+                'type' => $type,
             ],
         ]);
 
@@ -112,7 +114,7 @@ final class TransferHappyPathTest extends HttpTestCase
     public function testMerchantPayerReturns409(): void
     {
         $merchantId = $this->createUser('merchant');
-        $payeeId    = $this->createUser('common');
+        $payeeId = $this->createUser('common');
         $this->deposit($merchantId, 500.00);
 
         $result = $this->makeTransfer($merchantId, $payeeId, 50.00);
@@ -141,11 +143,11 @@ final class TransferHappyPathTest extends HttpTestCase
     {
         // Insert a user WITHOUT a wallet (bypassing repository)
         $userId = \Hyperf\DbConnection\Db::table('users')->insertGetId([
-            'name'       => 'No Wallet User',
-            'document'   => '66666666666',
-            'email'      => 'nowallet@hp.test',
-            'password'   => 'secret',
-            'type'       => 'common',
+            'name' => 'No Wallet User',
+            'document' => '66666666666',
+            'email' => 'nowallet@hp.test',
+            'password' => 'secret',
+            'type' => 'common',
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);

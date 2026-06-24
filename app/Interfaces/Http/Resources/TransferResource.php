@@ -8,7 +8,9 @@ use App\Domain\Transfer\Entities\Transfer;
 
 final class TransferResource
 {
-    public function __construct(private readonly Transfer $transfer) {}
+    public function __construct(private readonly Transfer $transfer)
+    {
+    }
 
     public function toArray(): array
     {

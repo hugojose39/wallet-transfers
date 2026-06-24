@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Interfaces\Http\Controllers;
 
-use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Redis\Redis;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
@@ -13,7 +12,8 @@ final class HealthController
 {
     public function __construct(
         private readonly Redis $redis,
-    ) {}
+    ) {
+    }
 
     public function index(ResponseInterface $response): PsrResponseInterface
     {
@@ -21,7 +21,7 @@ final class HealthController
             'redis' => $this->checkRedis(),
         ];
 
-        $healthy = ! in_array(false, $checks, true);
+        $healthy = !in_array(false, $checks, true);
 
         return $response->json([
             'status' => $healthy ? 'ok' : 'degraded',

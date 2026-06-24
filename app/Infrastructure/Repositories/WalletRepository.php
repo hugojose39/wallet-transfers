@@ -7,7 +7,6 @@ namespace App\Infrastructure\Repositories;
 use App\Domain\User\Contracts\WalletRepositoryInterface;
 use App\Domain\User\Entities\Wallet;
 use App\Infrastructure\Persistence\Models\WalletModel;
-use Hyperf\DbConnection\Db;
 use RuntimeException;
 
 final class WalletRepository implements WalletRepositoryInterface

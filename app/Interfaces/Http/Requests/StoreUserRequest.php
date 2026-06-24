@@ -16,11 +16,11 @@ final class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'     => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'document' => 'required|string|max:18',
-            'email'    => 'required|email|max:255',
+            'email' => 'required|email|max:255',
             'password' => 'required|string|min:8',
-            'type'     => 'required|in:common,merchant',
+            'type' => 'required|in:common,merchant',
         ];
     }
 }

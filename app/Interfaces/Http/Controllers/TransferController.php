@@ -17,7 +17,8 @@ final class TransferController
     public function __construct(
         private readonly CreateTransferUseCase $useCase,
         private readonly TransferRepositoryInterface $transferRepository,
-    ) {}
+    ) {
+    }
 
     public function store(StoreTransferRequest $request, ResponseInterface $response): PsrResponseInterface
     {

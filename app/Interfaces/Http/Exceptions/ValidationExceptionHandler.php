@@ -22,7 +22,7 @@ final class ValidationExceptionHandler extends ExceptionHandler
         return $response
             ->withStatus(422)
             ->withAddedHeader('Content-Type', 'application/json')
-            ->withBody(new SwooleStream(json_encode(['errors' => $errors])));
+            ->withBody(new SwooleStream((string) json_encode(['errors' => $errors])));
     }
 
     public function isValid(Throwable $throwable): bool

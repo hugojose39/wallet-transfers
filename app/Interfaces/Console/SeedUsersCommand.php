@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Interfaces\Console;
 
-use Hyperf\Command\Annotation\Command;
-use Hyperf\Command\Command as HyperfCommand;
 use App\Infrastructure\Persistence\Models\UserModel;
 use App\Infrastructure\Persistence\Models\WalletModel;
+use Hyperf\Command\Annotation\Command;
+use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\DbConnection\Db;
 use Symfony\Component\Console\Input\InputOption;
 

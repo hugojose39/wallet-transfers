@@ -14,5 +14,6 @@ final class CreateUserDTO
         public readonly string $email,
         public readonly string $password,
         public readonly UserType $type,
-    ) {}
+    ) {
+    }
 }

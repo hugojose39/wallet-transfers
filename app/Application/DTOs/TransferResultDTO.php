@@ -16,12 +16,13 @@ final class TransferResultDTO
         public readonly string $status,
         public readonly string $createdAt,
         private readonly Transfer $entity,
-    ) {}
+    ) {
+    }
 
     public static function fromEntity(Transfer $transfer): self
     {
         return new self(
-            id: $transfer->getId(),
+            id: (int) $transfer->getId(),
             payerId: $transfer->getPayerId(),
             payeeId: $transfer->getPayeeId(),
             amount: $transfer->getAmount(),

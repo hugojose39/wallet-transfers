@@ -8,7 +8,9 @@ use App\Domain\User\Entities\User;
 
 final class UserResource
 {
-    public function __construct(private readonly User $user) {}
+    public function __construct(private readonly User $user)
+    {
+    }
 
     public function toArray(): array
     {

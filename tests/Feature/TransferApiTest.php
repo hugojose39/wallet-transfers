@@ -60,12 +60,12 @@ final class TransferApiTest extends HttpTestCase
 
         $first = $this->client->request('POST', '/transfer', [
             'form_params' => ['value' => 100.00, 'payer' => 1, 'payee' => 2],
-            'headers'     => ['X-Idempotency-Key' => $key],
+            'headers' => ['X-Idempotency-Key' => $key],
         ]);
 
         $second = $this->client->request('POST', '/transfer', [
             'form_params' => ['value' => 100.00, 'payer' => 1, 'payee' => 2],
-            'headers'     => ['X-Idempotency-Key' => $key],
+            'headers' => ['X-Idempotency-Key' => $key],
         ]);
 
         $this->assertSame($first->getStatusCode(), $second->getStatusCode());

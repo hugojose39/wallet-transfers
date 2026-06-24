@@ -10,7 +10,8 @@ final class TransferDTO
         public readonly int $payerId,
         public readonly int $payeeId,
         public readonly int $amount,
-    ) {}
+    ) {
+    }
 
     public static function fromArray(array $data): self
     {

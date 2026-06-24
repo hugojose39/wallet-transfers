@@ -11,7 +11,9 @@ final class WalletBalanceCache
     private const TTL = 60;
     private const KEY_PREFIX = 'wallet:balance:';
 
-    public function __construct(private readonly Redis $redis) {}
+    public function __construct(private readonly Redis $redis)
+    {
+    }
 
     public function get(int $userId): ?int
     {

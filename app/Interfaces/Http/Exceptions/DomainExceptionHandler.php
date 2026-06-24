@@ -15,7 +15,8 @@ final class DomainExceptionHandler extends ExceptionHandler
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
         $this->stopPropagation();
-        $body = json_encode([
+        assert($throwable instanceof DomainException);
+        $body = (string) json_encode([
             'message' => $throwable->getMessage(),
             'error_code' => $throwable->errorCode(),
         ]);
