@@ -13,9 +13,9 @@ abstract class HttpTestCase extends TestCase
 {
     protected Client $client;
 
-    public function __construct($name = null, array $data = [], $dataName = '')
+    protected function setUp(): void
     {
-        parent::__construct($name, $data, $dataName);
+        parent::setUp();
         $this->client = make(Client::class);
     }
 }
