@@ -270,7 +270,7 @@ paths:
         **Fluxo interno:**
         1. Valida que o pagador (`payer`) é do tipo `common`
         2. Valida saldo suficiente (cache-first)
-        3. Consulta serviço externo de autorização (com circuit breaker + retry exponencial)
+        3. Consulta serviço externo de autorização (com retry exponencial)
         4. Abre transação DB → debita pagador → credita recebedor → salva registro
         5. Commit → invalida cache de saldo → dispara evento `TransferCreated`
         6. Listener envia notificação assincronamente via RabbitMQ

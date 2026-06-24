@@ -22,7 +22,6 @@
         "hyperf/retry": "^3.1",
         "hyperf/server": "^3.1",
         "hyperf/amqp": "^3.1",
-        "hyperf/circuit-breaker": "^3.1",
         "hyperf/validation": "^3.1",
         "hyperf/model-cache": "^3.1",
         "hyperf/async-queue": "^3.1"

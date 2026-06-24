@@ -472,16 +472,6 @@ SELECT * FROM wallets WHERE user_id = ? FOR UPDATE;
 
 **Classe:** `App\Infrastructure\Repositories\WalletRepository::findByUserIdForUpdate()`
 
-### Circuit Breaker (Autorizador)
-
-O cliente HTTP do autorizador usa `#[CircuitBreaker]` do Hyperf:
-
-- Abre após **3 falhas consecutivas**
-- Permanece aberto por **30 segundos**
-- Fallback: nega a transferência e loga o erro
-
-**Classe:** `App\Infrastructure\Http\AuthorizerClient`
-
 ---
 
 ## Cache
@@ -540,7 +530,7 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | `Infrastructure\Persistence\Models\WalletModel` | Model Eloquent para a tabela `wallets` |
 | `Infrastructure\Persistence\Models\TransferModel` | Model Eloquent para a tabela `transfers` |
 | `Infrastructure\Cache\WalletBalanceCache` | Abstração do Redis para saldo |
-| `Infrastructure\Http\AuthorizerClient` | HTTP para DeviTools com `#[CircuitBreaker]` + `#[Retry]` |
+| `Infrastructure\Http\AuthorizerClient` | HTTP para DeviTools com `#[Retry]` e backoff exponencial |
 | `Infrastructure\Http\NotifierClient` | HTTP para serviço de notificação |
 | `Infrastructure\Queue\TransferNotificationProducer` | Publica mensagem no RabbitMQ |
 | `Infrastructure\Queue\TransferNotificationConsumer` | Consome e envia notificação; requeue em falha |
