@@ -25,7 +25,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
@@ -68,12 +70,10 @@ jobs:
       - name: Unit tests
         run: vendor/bin/phpunit --testsuite=Unit --colors=always
 
-      - name: Integration tests
-        run: vendor/bin/phpunit --testsuite=Integration --colors=always
+      - name: Feature tests
+        run: vendor/bin/phpunit --testsuite=Feature --colors=always
 
       - name: Coverage report
-        run: vendor/bin/phpunit --coverage-text --coverage-html=coverage/
+        run: vendor/bin/phpunit --coverage-html=coverage/ --coverage-clover=coverage/clover.xml --coverage-text
         env:
-          APP_ENV: testing
-          DB_DRIVER: sqlite
-          DB_DATABASE: ":memory:"
+          XDEBUG_MODE: coverage

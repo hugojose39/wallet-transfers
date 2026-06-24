@@ -508,6 +508,13 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | `Domain\Transfer\Entities\Transfer` | Entidade transferência com ciclo de vida (status) |
 | `Domain\Transfer\Enums\TransferStatus` | `pending → authorized → completed / failed` |
 | `Domain\Transfer\Events\TransferCreated` | Evento disparado após commit da transação |
+| `Domain\Shared\Exceptions\DomainException` | Base para todas as exceções de domínio |
+| `Domain\Shared\Exceptions\InsufficientBalanceException` | Saldo insuficiente para a transferência |
+| `Domain\Shared\Exceptions\UnauthorizedTransferException` | Tipo de usuário não permitido para envio |
+| `Domain\Shared\Exceptions\TransferNotAuthorizedException` | Serviço externo negou a autorização |
+| `Domain\Shared\Exceptions\DuplicateDocumentException` | Documento (`CPF`/`CNPJ`) já cadastrado |
+| `Domain\Shared\Exceptions\DuplicateEmailException` | E-mail já cadastrado |
+| `Domain\Shared\Exceptions\UserNotFoundException` | Usuário não encontrado no repositório |
 
 ### Application
 
@@ -515,10 +522,12 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 |---|---|
 | `Application\UseCases\CreateTransferUseCase` | Orquestra todo o fluxo: lock → validar → autorizar → transação → evento |
 | `Application\UseCases\CreateUserUseCase` | Valida unicidade de document/email, cria usuário com carteira zerada |
+| `Application\Services\AuthorizerServiceInterface` | Contrato do serviço de autorização (injeção de dependência) |
 | `Application\Services\AuthorizerService` | Chama o cliente HTTP e lança exceção se negado |
 | `Application\Services\NotificationService` | Enfileira notificação via RabbitMQ |
-| `Application\DTOs\TransferDTO` | Dados de entrada da transferência |
-| `Application\DTOs\TransferResultDTO` | Dados de saída (response) |
+| `Application\DTOs\CreateUserDTO` | Dados de entrada para criação de usuário |
+| `Application\DTOs\TransferDTO` | Dados de entrada para criação de transferência |
+| `Application\DTOs\TransferResultDTO` | Dados de saída da transferência (response) |
 
 ### Infrastructure
 
@@ -527,6 +536,9 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | `Infrastructure\Repositories\UserRepository` | Busca usuário com carteira do banco |
 | `Infrastructure\Repositories\WalletRepository` | `SELECT … FOR UPDATE` + persist |
 | `Infrastructure\Repositories\TransferRepository` | Persiste e consulta transferências |
+| `Infrastructure\Persistence\Models\UserModel` | Model Eloquent para a tabela `users` |
+| `Infrastructure\Persistence\Models\WalletModel` | Model Eloquent para a tabela `wallets` |
+| `Infrastructure\Persistence\Models\TransferModel` | Model Eloquent para a tabela `transfers` |
 | `Infrastructure\Cache\WalletBalanceCache` | Abstração do Redis para saldo |
 | `Infrastructure\Http\AuthorizerClient` | HTTP para DeviTools com `#[CircuitBreaker]` + `#[Retry]` |
 | `Infrastructure\Http\NotifierClient` | HTTP para serviço de notificação |
@@ -542,6 +554,13 @@ A invalidação do saldo ocorre no listener do evento `TransferCreated`, que inv
 | `Interfaces\Http\Controllers\UserController` | `POST /users`, `POST /users/{id}/wallet/deposit`, `GET /users/{id}/transfers`, `GET /users/{id}/wallet` |
 | `Interfaces\Http\Controllers\HealthController` | `GET /health` |
 | `Interfaces\Http\Controllers\DocsController` | `GET /docs` (Swagger UI), `GET /docs/openapi.yaml` |
+| `Interfaces\Http\Requests\StoreUserRequest` | Validação e parsing do body de `POST /users` |
+| `Interfaces\Http\Requests\StoreTransferRequest` | Validação e parsing do body de `POST /transfer` |
+| `Interfaces\Http\Requests\StoreDepositRequest` | Validação e parsing do body de `POST /users/{id}/wallet/deposit` |
+| `Interfaces\Http\Resources\UserResource` | Transforma `User` entity em array JSON de resposta |
+| `Interfaces\Http\Resources\WalletResource` | Transforma `Wallet` entity em array JSON de resposta |
+| `Interfaces\Http\Resources\TransferResource` | Transforma `Transfer` entity em array JSON de resposta |
+| `Interfaces\Http\Exceptions\DomainExceptionHandler` | Captura `DomainException` e mapeia para HTTP status correto |
 | `Interfaces\Http\Exceptions\ValidationExceptionHandler` | Captura `ValidationException`, retorna 422 |
 | `Interfaces\Http\Exceptions\UnhandledExceptionHandler` | Catch-all para exceções não tratadas, retorna 500 |
 
@@ -595,10 +614,24 @@ vendor/bin/phpstan analyse
 vendor/bin/ecs check
 ```
 
-| Suite | O que cobre |
-|---|---|
-| `Unit\Domain\WalletTest` | Débito, crédito, saldo insuficiente, validações de valor |
-| `Unit\Domain\UserTest` | `assertCanTransfer()` para `common` e `merchant` |
-| `Unit\Domain\TransferTest` | Ciclo de vida do status, validações de criação |
-| `Unit\Application\CreateTransferUseCaseTest` | Merchant bloqueado, autorizador negando, lock distribuído |
-| `Feature\TransferApiTest` | Validação de campos, health check |
+| Suite | Arquivo | O que cobre |
+|---|---|---|
+| Unit | `Unit\Domain\WalletTest` | Débito, crédito, saldo insuficiente, validações de valor |
+| Unit | `Unit\Domain\UserTest` | `assertCanTransfer()` para `common` e `merchant` |
+| Unit | `Unit\Domain\TransferTest` | Ciclo de vida do status, validações de criação |
+| Unit | `Unit\Domain\DomainExceptionTest` | Hierarquia de exceções de domínio |
+| Unit | `Unit\Domain\TransferCreatedEventTest` | Criação e propriedades do evento |
+| Unit | `Unit\Application\CreateTransferUseCaseTest` | Merchant bloqueado, autorizador negando, lock distribuído |
+| Unit | `Unit\Application\CreateUserUseCaseTest` | Unicidade de document/email, criação de usuário |
+| Unit | `Unit\Application\TransferDTOTest` | Criação e validação do DTO |
+| Unit | `Unit\Application\TransferResultDTOTest` | Serialização do resultado |
+| Unit | `Unit\Infrastructure\AuthorizerClientTest` | Circuit breaker, retry, resposta do autorizador |
+| Unit | `Unit\Infrastructure\AuthorizerServiceTest` | Lança exceção quando negado |
+| Unit | `Unit\Infrastructure\NotificationServiceTest` | Publicação na fila |
+| Unit | `Unit\Infrastructure\WalletBalanceCacheTest` | Set/get/invalidation no Redis |
+| Unit | `Unit\Infrastructure\ExceptionHandlersTest` | Mapeamento de exceções para HTTP status |
+| Unit | `Unit\Infrastructure\HealthControllerTest` | Health check com Redis up/down |
+| Unit | `Unit\Infrastructure\ResourcesTest` | Transformação das entities em arrays de resposta |
+| Feature | `Feature\TransferApiTest` | Validação de campos do endpoint de transferência |
+| Feature | `Feature\UserApiTest` | Criação de usuário, depósito, carteira e histórico |
+| Feature | `Feature\TransferHappyPathTest` | Fluxo completo de transferência (happy path) |
