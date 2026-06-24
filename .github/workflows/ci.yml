@@ -70,9 +70,6 @@ jobs:
       - name: Unit tests
         run: vendor/bin/phpunit --testsuite=Unit --colors=always
 
-      - name: Feature tests
-        run: vendor/bin/co-phpunit --testsuite=Feature --colors=always
-
       - name: Coverage report
         run: vendor/bin/co-phpunit --coverage-html=coverage/ --coverage-clover=coverage/clover.xml --coverage-text
         env:
