@@ -19,8 +19,7 @@ final class SimulateTransferCommand extends HyperfCommand
 
     public function __construct(
         private readonly CreateTransferUseCase $useCase
-    )
-    {
+    ) {
         parent::__construct();
     }
 
@@ -84,7 +83,7 @@ final class SimulateTransferCommand extends HyperfCommand
 
                     $payees = array_filter(
                         $allUsers,
-                        fn($id) => $id !== $payer
+                        fn ($id) => $id !== $payer
                     );
 
                     $payee = array_values($payees)[array_rand($payees)];

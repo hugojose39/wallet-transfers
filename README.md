@@ -553,17 +553,17 @@ A invalidação ocorre diretamente no `CreateTransferUseCase` após o commit da 
 
 ```bash
 # Criar usuários seed (--balance em centavos: 1000000 = R$ 10.000,00)
-php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000000
+docker compose exec app php bin/hyperf.php seed:users --common=5 --merchant=2 --balance=1000000
 
 # Simular N transferências concorrentes (útil para demonstrar lock)
-php bin/hyperf.php transfer:simulate --count=20 --concurrent=5
+docker compose exec app php bin/hyperf.php transfer:simulate --count=20 --concurrent=5
 
 # Consultar saldo (--fresh ignora cache)
-php bin/hyperf.php wallet:balance 1
-php bin/hyperf.php wallet:balance 1 --fresh
+docker compose exec app php bin/hyperf.php wallet:balance 1
+docker compose exec app php bin/hyperf.php wallet:balance 1 --fresh
 
 # Listar histórico de transferências
-php bin/hyperf.php transfer:list 1
+docker compose exec app php bin/hyperf.php transfer:list 1
 ```
 
 | Comando | Classe |
