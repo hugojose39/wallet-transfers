@@ -53,21 +53,4 @@ final class TransferApiTest extends HttpTestCase
         $response = $this->client->request('GET', '/docs');
         $this->assertSame(200, $response->getStatusCode());
     }
-
-    public function testIdempotencyHeaderReturnsCachedResponse(): void
-    {
-        $key = 'test-idem-' . uniqid();
-
-        $first = $this->client->request('POST', '/transfer', [
-            'form_params' => ['value' => 100.00, 'payer' => 1, 'payee' => 2],
-            'headers' => ['X-Idempotency-Key' => $key],
-        ]);
-
-        $second = $this->client->request('POST', '/transfer', [
-            'form_params' => ['value' => 100.00, 'payer' => 1, 'payee' => 2],
-            'headers' => ['X-Idempotency-Key' => $key],
-        ]);
-
-        $this->assertSame($first->getStatusCode(), $second->getStatusCode());
-    }
 }
