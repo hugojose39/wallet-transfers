@@ -1,0 +1,384 @@
+{
+  "info": {
+    "_postman_id": "wallet-transfers-collection",
+    "name": "Wallet Transfers API",
+    "description": "API REST para transferências financeiras entre usuários e lojistas.\nConstruída com Hyperf 3.x + Swoole — arquitetura DDD Light.\n\n**Regras de negócio:**\n- Apenas usuários `common` podem enviar transferências.\n- Usuários `merchant` só podem receber.\n- Autorização via serviço externo antes de cada transferência.\n- Notificações assíncronas via RabbitMQ.\n\n**Use o environment `Wallet Transfers — Local` para configurar base_url e IDs.**",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "System",
+      "description": "Health check e diagnóstico",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica a saúde dos serviços dependentes (Redis).\n\nRetorna `status: ok` quando tudo está operacional ou `status: degraded` se algum serviço falhou."
+          },
+          "response": [
+            {
+              "name": "200 — Operacional",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\",\n  \"checks\": {\n    \"redis\": true\n  }\n}"
+            },
+            {
+              "name": "503 — Degradado",
+              "status": "Service Unavailable",
+              "code": 503,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"degraded\",\n  \"checks\": {\n    \"redis\": false\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Criação de usuários, consulta de carteiras e histórico de transferências",
+      "item": [
+        {
+          "name": "Criar Usuário Comum",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('user_id', json.data.id);",
+                  "    pm.test('Usuário criado — ID salvo em user_id', () => pm.expect(json.data.id).to.be.a('number'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"João Silva\",\n  \"document\": \"12345678901\",\n  \"email\": \"joao@example.com\",\n  \"password\": \"secret123\",\n  \"type\": \"common\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Cria um usuário do tipo `common`. Apenas este tipo pode enviar transferências.\n\nApós criação bem-sucedida, o script de teste salva o ID retornado na variável `user_id`."
+          },
+          "response": [
+            {
+              "name": "201 — Criado",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"João Silva\",\n    \"document\": \"12345678901\",\n    \"email\": \"joao@example.com\",\n    \"type\": \"common\"\n  }\n}"
+            },
+            {
+              "name": "422 — Documento já em uso",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"The document is already in use.\"\n}"
+            },
+            {
+              "name": "422 — Validação falhou",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Validation failed.\",\n  \"errors\": {\n    \"email\": [\"The email field is required.\"],\n    \"type\": [\"The selected type is invalid.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Criar Lojista (Merchant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('payee_id', json.data.id);",
+                  "    pm.test('Lojista criado — ID salvo em payee_id', () => pm.expect(json.data.id).to.be.a('number'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Loja ABC\",\n  \"document\": \"12345678000195\",\n  \"email\": \"loja@example.com\",\n  \"password\": \"secret123\",\n  \"type\": \"merchant\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Cria um usuário do tipo `merchant`. Lojistas só podem receber transferências, nunca enviar.\n\nApós criação bem-sucedida, o script de teste salva o ID retornado na variável `payee_id`."
+          },
+          "response": [
+            {
+              "name": "201 — Criado",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": 2,\n    \"name\": \"Loja ABC\",\n    \"document\": \"12345678000195\",\n    \"email\": \"loja@example.com\",\n    \"type\": \"merchant\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consultar Saldo da Carteira",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/wallet",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}", "wallet"]
+            },
+            "description": "Retorna o saldo atual da carteira. Lê do cache Redis (TTL 60s) antes de consultar o banco.\n\nO campo `from_cache` indica se o dado veio do Redis (`true`) ou do banco (`false`).\n\nSaldo é retornado em **reais** (centavos / 100)."
+          },
+          "response": [
+            {
+              "name": "200 — Saldo (cache)",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"user_id\": 1,\n    \"balance\": 850.00,\n    \"from_cache\": true\n  }\n}"
+            },
+            {
+              "name": "200 — Saldo (banco)",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"user_id\": 1,\n    \"balance\": 850.00,\n    \"from_cache\": false\n  }\n}"
+            },
+            {
+              "name": "404 — Usuário não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"User not found.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Depositar Saldo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/wallet/deposit",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}", "wallet", "deposit"]
+            },
+            "description": "Adiciona saldo à carteira do usuário.\n\nValor informado em **reais** (float), armazenado internamente em **centavos** (BIGINT). Valor mínimo: R$ 0,01."
+          },
+          "response": [
+            {
+              "name": "200 — Depósito realizado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"user_id\": 1,\n    \"balance\": 950.00,\n    \"from_cache\": false\n  }\n}"
+            },
+            {
+              "name": "404 — Usuário não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"User not found.\"\n}"
+            },
+            {
+              "name": "422 — Valor inválido",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Validation failed.\",\n  \"errors\": {\n    \"amount\": [\"The amount field must be at least 0.01.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Histórico de Transferências do Usuário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/transfers?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}", "transfers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (padrão: 1)"
+                }
+              ]
+            },
+            "description": "Lista paginada de transferências onde o usuário foi **pagador ou recebedor**.\n\nUse o parâmetro `page` para navegar entre páginas."
+          },
+          "response": [
+            {
+              "name": "200 — Lista de transferências",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 42,\n      \"payer_id\": 1,\n      \"payee_id\": 2,\n      \"amount\": 150.00,\n      \"status\": \"completed\",\n      \"created_at\": \"2024-06-22 10:30:00\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1\n  }\n}"
+            },
+            {
+              "name": "404 — Usuário não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"User not found.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transfers",
+      "description": "Operações de transferência financeira",
+      "item": [
+        {
+          "name": "Realizar Transferência",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('transfer_id', json.data.id);",
+                  "    pm.test('Transferência criada — ID salvo em transfer_id', () => pm.expect(json.data.id).to.be.a('number'));",
+                  "    pm.test('Status é completed', () => pm.expect(json.data.status).to.equal('completed'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 150.00,\n  \"payer\": {{user_id}},\n  \"payee\": {{payee_id}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/transfer",
+              "host": ["{{base_url}}"],
+              "path": ["transfer"]
+            },
+            "description": "Executa uma transferência financeira entre dois usuários.\n\n**Fluxo interno:**\n1. Valida que o pagador é `common`\n2. Valida saldo suficiente (cache-first)\n3. Consulta serviço externo de autorização\n4. Abre transação DB → debita pagador → credita recebedor → salva registro\n5. Commit → invalida cache Redis → dispara evento `TransferCreated`\n6. Publica na fila RabbitMQ para notificação assíncrona\n\n**Concorrência:** Distributed Lock (Redis `SET NX EX`) por pagador impede transferências paralelas."
+          },
+          "response": [
+            {
+              "name": "201 — Transferência concluída",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Transfer completed successfully.\",\n  \"data\": {\n    \"id\": 42,\n    \"payer_id\": 1,\n    \"payee_id\": 2,\n    \"amount\": 150.00,\n    \"status\": \"completed\",\n    \"created_at\": \"2024-06-22 10:30:00\"\n  }\n}"
+            },
+            {
+              "name": "403 — Pagador é merchant",
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"User type \\\"merchant\\\" is not allowed to send transfers.\"\n}"
+            },
+            {
+              "name": "409 — Transferência em andamento (lock ativo)",
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Another transfer is already in progress for this payer. Please try again.\"\n}"
+            },
+            {
+              "name": "422 — Saldo insuficiente",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Insufficient balance. Available: 50.00, Requested: 150.00\"\n}"
+            },
+            {
+              "name": "422 — Não autorizado pelo serviço externo",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Transfer was not authorized by the external service.\"\n}"
+            },
+            {
+              "name": "422 — Validação falhou",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Validation failed.\",\n  \"errors\": {\n    \"value\": [\"The value field must be at least 0.01.\"],\n    \"payer\": [\"The payer field is required.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consultar Transferência",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/transfer/{{transfer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["transfer", "{{transfer_id}}"]
+            },
+            "description": "Retorna os detalhes de uma transferência pelo ID.\n\nStatus possíveis: `pending`, `authorized`, `completed`, `failed`."
+          },
+          "response": [
+            {
+              "name": "200 — Transferência encontrada",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": 42,\n    \"payer_id\": 1,\n    \"payee_id\": 2,\n    \"amount\": 150.00,\n    \"status\": \"completed\",\n    \"created_at\": \"2024-06-22 10:30:00\"\n  }\n}"
+            },
+            {
+              "name": "404 — Transferência não encontrada",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Transfer not found.\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
