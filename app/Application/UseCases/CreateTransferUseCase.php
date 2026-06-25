@@ -120,8 +120,6 @@ final class CreateTransferUseCase
             $dto->amount,
         );
 
-        co(function () use ($event) {
-            $this->amqpProducer->produce(new TransferNotificationProducer($event));
-        });
+        co(fn () => $this->amqpProducer->produce(new TransferNotificationProducer($event)));
     }
 }
