@@ -9,6 +9,7 @@ API REST para transferências financeiras entre usuários e lojistas, construíd
 - [Stack](#stack)
 - [Arquitetura](#arquitetura)
 - [Como rodar](#como-rodar)
+- [Postman](#postman)
 - [Endpoints](#endpoints)
   - [POST /users](#post-users)
   - [POST /users/{id}/wallet/deposit](#post-usersidwalletdeposit)
@@ -102,6 +103,45 @@ docker compose exec app php bin/hyperf.php seed:users --common=5 --merchant=2 --
 # Swagger UI: http://localhost:9501/docs
 
 ```
+
+---
+
+## Postman
+
+### Workspace público
+
+Acesse a collection diretamente pelo link abaixo — sem precisar importar nenhum arquivo:
+
+[**Abrir no Postman**](https://www.postman.com/hugo-jose-ferreira-moreira-227664/workspace/hugo-jos-s-workspace/collection/56183644-b549b7fa-c440-476b-8a5a-47c6a0760107?action=share&creator=56183644&active-environment=56183644-26db8a02-c738-4d04-a25d-401cbd4b39de)
+
+### Importar pelos arquivos do repositório
+
+Os arquivos estão em `postman/`:
+
+```
+postman/
+├── wallet-transfers.collection.json   # Todos os endpoints com exemplos
+└── wallet-transfers.environment.json  # Variáveis: base_url, user_id, payee_id, transfer_id
+```
+
+**Passos:**
+
+1. Abra o Postman
+2. Clique em **Import** (canto superior esquerdo)
+3. Arraste os dois arquivos ou clique em **Upload Files** e selecione ambos
+4. Na aba **Environments**, selecione **Wallet Transfers — Local**
+5. Ajuste `base_url` se necessário (padrão: `http://localhost:9501`)
+
+### Variáveis de ambiente
+
+| Variável | Valor padrão | Descrição |
+|---|---|---|
+| `base_url` | `http://localhost:9501` | URL base da API |
+| `user_id` | `1` | ID do usuário pagador (tipo `common`) |
+| `payee_id` | `2` | ID do recebedor (tipo `merchant`) |
+| `transfer_id` | `1` | ID de uma transferência existente |
+
+> Os requests de **Criar Usuário** e **Realizar Transferência** salvam automaticamente os IDs retornados nas variáveis `user_id`, `payee_id` e `transfer_id` via scripts de teste.
 
 ---
 
