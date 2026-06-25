@@ -16,7 +16,7 @@ use Psr\Log\LoggerInterface;
     routingKey: 'transfer.notify',
     queue: 'transfer',
     name: "TransferNotificationConsumer",
-    nums: 1,
+    nums: 2,
 )]
 final class TransferNotificationConsumer extends ConsumerMessage
 {

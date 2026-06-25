@@ -101,8 +101,6 @@ docker compose exec app php bin/hyperf.php seed:users --common=5 --merchant=2 --
 # http://localhost:9501
 # Swagger UI: http://localhost:9501/docs
 
-# Desenvolvimento com hot-reload:
-docker compose exec app php bin/hyperf.php server:watch
 ```
 
 ---
@@ -566,9 +564,6 @@ php bin/hyperf.php wallet:balance 1 --fresh
 
 # Listar histórico de transferências
 php bin/hyperf.php transfer:list 1
-
-# Servidor com hot-reload (desenvolvimento)
-php bin/hyperf.php server:watch
 ```
 
 | Comando | Classe |
